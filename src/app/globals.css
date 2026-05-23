@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5f8fb;
+  --foreground: #0f172a;
+  --cursor-x: 50vw;
+  --cursor-y: 35vh;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  text-rendering: geometricPrecision;
+}
+
+.site-background {
+  position: fixed;
+  inset: -34px;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, rgba(245, 248, 251, 0.72) 0%, rgba(245, 248, 251, 0.24) 42%, rgba(245, 248, 251, 0.02) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(237, 244, 251, 0.08) 58%, rgba(237, 244, 251, 0.38) 100%),
+    url("/assets/brand/server-safe-3d-wallpaper.png");
+  background-position: center top;
+  background-size: cover;
+  filter: blur(5px) saturate(1.18);
+  opacity: 0.96;
+  transform: scale(1.018);
+}
+
+.site-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.34), transparent 34%),
+    radial-gradient(circle at 78% 12%, rgba(219, 234, 254, 0.12), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(237, 244, 251, 0.24));
+}
+
+.content-layer {
+  position: relative;
+  z-index: 1;
+}
+
+::selection {
+  background: rgba(37, 99, 235, 0.18);
+  color: #0f172a;
+}
+
+.glass-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.12) 32%, transparent 56%),
+    linear-gradient(315deg, rgba(56, 189, 248, 0.12), transparent 46%);
+  opacity: 0.95;
+}
+
+.glass-panel::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  pointer-events: none;
+  border-radius: 7px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.04),
+    inset 0 0 28px rgba(255, 255, 255, 0.28);
+}
+
+.glass-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.interactive-glow-card {
+  position: relative;
+  transition: transform 220ms ease, opacity 220ms ease, box-shadow 220ms ease;
+}
+
+.interactive-glow-card:hover {
+  transform: translateY(-2px);
+}
+
+.interactive-glow-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 9px;
+  background: radial-gradient(
+    260px circle at var(--x) var(--y),
+    rgba(37, 99, 235, 0.09),
+    rgba(14, 116, 144, 0.05) 34%,
+    transparent 64%
+  );
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.interactive-glow-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: 8px;
+  background: linear-gradient(115deg, transparent 8%, rgba(255, 255, 255, 0.36) 18%, transparent 32%);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.interactive-glow-card:hover::before,
+.interactive-glow-card:hover::after {
+  opacity: 1;
+}
+
+.mouse-gradient {
+  display: none;
+}
+
+.hero-visual {
+  animation: none;
+}
+
+@media (max-width: 767px), (hover: none), (pointer: coarse) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .mouse-gradient {
+    display: none;
+  }
+
+  .interactive-glow-card {
+    transform: none !important;
+  }
+
+  .interactive-glow-card::before,
+  .interactive-glow-card::after {
+    display: none;
+  }
+
+  .hero-visual {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
