@@ -15,7 +15,6 @@ function isDesktopMotion() {
 export function PageMotion() {
   const timeoutRef = useRef<number | null>(null);
   const pointerFrameRef = useRef<number | null>(null);
-  const pointerRef = useRef<HTMLDivElement>(null);
   const ambientPrimaryRef = useRef<HTMLDivElement>(null);
   const ambientSecondaryRef = useRef<HTMLDivElement>(null);
 
@@ -70,10 +69,6 @@ export function PageMotion() {
         const primaryY = y;
         const secondaryX = x + window.innerWidth * 0.18;
         const secondaryY = y + window.innerHeight * 0.22;
-
-        if (pointerRef.current) {
-          pointerRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) translate3d(-50%, -50%, 0)`;
-        }
 
         if (ambientPrimaryRef.current) {
           ambientPrimaryRef.current.style.transform = `translate3d(${primaryX}px, ${primaryY}px, 0) translate3d(-50%, -50%, 0)`;
@@ -159,7 +154,6 @@ export function PageMotion() {
     <>
       <div ref={ambientPrimaryRef} className="ambient-orb ambient-orb-primary" aria-hidden="true" />
       <div ref={ambientSecondaryRef} className="ambient-orb ambient-orb-secondary" aria-hidden="true" />
-      <div ref={pointerRef} className="pointer-liquid-glass" aria-hidden="true" />
       <div className="page-transition-overlay" aria-hidden="true" />
     </>
   );

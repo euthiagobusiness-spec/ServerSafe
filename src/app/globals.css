@@ -101,10 +101,6 @@ body {
   transition-duration: 1.9s, 0.9s;
 }
 
-.pointer-liquid-glass {
-  display: none;
-}
-
 .page-transition-overlay {
   position: fixed;
   inset: 0;
@@ -329,63 +325,6 @@ body {
   opacity: 1;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .pointer-liquid-glass {
-    position: fixed;
-    left: 0;
-    top: 0;
-    z-index: 2;
-    display: block;
-    width: 7.5rem;
-    height: 7.5rem;
-    pointer-events: none;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.34);
-    background:
-      radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.46), transparent 20%),
-      radial-gradient(circle at 68% 70%, rgba(6, 182, 212, 0.13), transparent 28%),
-      linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(219, 234, 254, 0.1));
-    box-shadow:
-      inset 0 1px rgba(255, 255, 255, 0.6),
-      inset 0 -12px 26px rgba(15, 23, 42, 0.05),
-      0 18px 48px rgba(15, 23, 42, 0.08),
-      0 6px 18px rgba(37, 99, 235, 0.08);
-    opacity: 0.42;
-    transform: translate3d(50vw, 34vh, 0) translate3d(-50%, -50%, 0);
-    transition:
-      transform 0.9s var(--motion-ease),
-      opacity 0.7s ease,
-      background 0.7s ease;
-    mix-blend-mode: soft-light;
-    will-change: transform;
-  }
-
-  .pointer-liquid-glass::before,
-  .pointer-liquid-glass::after {
-    content: "";
-    position: absolute;
-    pointer-events: none;
-    border-radius: inherit;
-  }
-
-  .pointer-liquid-glass::before {
-    inset: 0.62rem;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 48%),
-      radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.36), transparent 24%);
-  }
-
-  .pointer-liquid-glass::after {
-    inset: 18% 22% auto auto;
-    width: 34%;
-    height: 18%;
-    background: rgba(255, 255, 255, 0.42);
-    opacity: 0.42;
-    transform: rotate(-28deg);
-  }
-}
-
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 360ms;
@@ -441,8 +380,7 @@ body {
     transition: none;
   }
 
-  .ambient-orb,
-  .pointer-liquid-glass {
+  .ambient-orb {
     display: none;
   }
 
@@ -513,8 +451,7 @@ body {
     display: none;
   }
 
-  .ambient-orb,
-  .pointer-liquid-glass {
+  .ambient-orb {
     display: none !important;
   }
 
