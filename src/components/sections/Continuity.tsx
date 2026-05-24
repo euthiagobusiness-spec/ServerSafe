@@ -51,13 +51,13 @@ export function Continuity() {
         </div>
 
         <GlassCard className="p-6 sm:p-8">
-          <div className="relative min-h-[360px] overflow-hidden rounded-[8px] border border-white/60 bg-white/42 p-5 shadow-sm backdrop-blur-2xl">
+          <div className="relative min-h-[360px] overflow-hidden rounded-[8px] border border-white/60 bg-white/48 p-5 shadow-sm backdrop-blur-md">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_18%,rgba(255,255,255,0.42),transparent_36%)]" />
             <div className="relative grid gap-4">
               {pillars.map(({ title, description, icon: Icon }, index) => (
                 <div
                   key={title}
-                  className="flex items-start gap-4 rounded-[8px] border border-white/60 bg-white/56 p-4 shadow-sm backdrop-blur-xl"
+                  className="flex items-start gap-4 rounded-[8px] border border-white/60 bg-white/62 p-4 shadow-sm backdrop-blur-sm"
                 >
                   <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] border border-blue-200 bg-blue-50">
                     <Icon className="h-5 w-5 text-blue-700" aria-hidden="true" />

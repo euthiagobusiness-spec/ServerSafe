@@ -38,7 +38,7 @@ export function FinalCTA() {
               <a
                 key={href}
                 href={href}
-                className="inline-flex min-h-12 items-center justify-center gap-3 rounded-[8px] border border-white/70 bg-white/45 px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-xl transition hover:border-blue-200 hover:bg-blue-50/70 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
+                className="inline-flex min-h-12 items-center justify-center gap-3 rounded-[8px] border border-white/70 bg-white/58 px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-sm transition hover:border-blue-200 hover:bg-blue-50/70 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
               >
                 <Icon className="h-4 w-4 text-blue-700" aria-hidden="true" />
                 {label}

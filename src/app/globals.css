@@ -5,6 +5,8 @@
   --foreground: #0f172a;
   --cursor-x: 50vw;
   --cursor-y: 35vh;
+  --depth-x: 0;
+  --depth-y: 0;
 }
 
 @theme inline {
@@ -20,6 +22,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 88px;
 }
 
 body {
@@ -40,7 +43,7 @@ body {
     url("/assets/brand/server-safe-3d-wallpaper.png");
   background-position: center top;
   background-size: cover;
-  filter: blur(5px) saturate(1.18);
+  filter: saturate(1.08);
   opacity: 0.96;
   transform: scale(1.018);
 }
@@ -60,9 +63,80 @@ body {
   z-index: 1;
 }
 
+.page-transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  opacity: 0;
+  transform: scaleY(0.985);
+  transform-origin: center;
+  background:
+    radial-gradient(circle at var(--cursor-x) var(--cursor-y), rgba(37, 99, 235, 0.11), transparent 34%),
+    linear-gradient(115deg, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0.08) 42%, rgba(219, 234, 254, 0.18));
+  transition:
+    opacity 320ms ease,
+    transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.is-page-transitioning .page-transition-overlay {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.motion-section {
+  position: relative;
+  transform-style: preserve-3d;
+  perspective: 1400px;
+  isolation: isolate;
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  content-visibility: auto;
+  contain-intrinsic-size: 900px;
+}
+
+.motion-section::before {
+  content: "";
+  position: absolute;
+  inset: 10% 3% auto;
+  z-index: -1;
+  height: 62%;
+  pointer-events: none;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.08), transparent 58%),
+    radial-gradient(circle at 12% 60%, rgba(6, 182, 212, 0.06), transparent 42%);
+  filter: blur(6px);
+  opacity: 0;
+  transform: translate3d(0, 0, -1px);
+  transition: opacity 900ms ease, transform 900ms ease;
+}
+
+.motion-section.is-visible::before {
+  opacity: 1;
+}
+
+.motion-ready .motion-section {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+  transition:
+    opacity 760ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 880ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 740ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.motion-ready .motion-section.is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
 ::selection {
   background: rgba(37, 99, 235, 0.18);
   color: #0f172a;
+}
+
+.glass-panel {
+  transform-style: preserve-3d;
 }
 
 .glass-panel::before {
@@ -93,13 +167,33 @@ body {
   z-index: 1;
 }
 
+.motion-ready .motion-card {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+  transform-origin: center top;
+  transition:
+    opacity 620ms ease,
+    transform 760ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 580ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.motion-ready .motion-card.is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
 .interactive-glow-card {
   position: relative;
-  transition: transform 220ms ease, opacity 220ms ease, box-shadow 220ms ease;
+  transform-style: preserve-3d;
+  transition: transform 260ms ease, opacity 260ms ease, box-shadow 260ms ease;
 }
 
 .interactive-glow-card:hover {
-  transform: translateY(-2px);
+  transform:
+    perspective(900px)
+    rotateX(var(--rx))
+    rotateY(var(--ry))
+    translate3d(0, -4px, 18px);
 }
 
 .interactive-glow-card::before {
@@ -136,6 +230,42 @@ body {
   opacity: 1;
 }
 
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 360ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+::view-transition-old(root) {
+  animation-name: page-layer-out;
+}
+
+::view-transition-new(root) {
+  animation-name: page-layer-in;
+}
+
+@keyframes page-layer-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0.82;
+    transform: translateY(-8px) scale(0.998);
+  }
+}
+
+@keyframes page-layer-in {
+  from {
+    opacity: 0.72;
+    transform: translateY(18px) scale(1.006);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .mouse-gradient {
   display: none;
 }
@@ -147,6 +277,38 @@ body {
 @media (max-width: 767px), (hover: none), (pointer: coarse) {
   html {
     scroll-behavior: auto;
+    scroll-padding-top: 76px;
+  }
+
+  .site-background {
+    transform: scale(1.018);
+    transition: none;
+  }
+
+  .page-transition-overlay {
+    display: none;
+  }
+
+  .motion-ready .motion-section {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: opacity 360ms ease;
+  }
+
+  .motion-section::before {
+    display: none;
+  }
+
+  .motion-ready .motion-card {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 420ms ease, transform 460ms ease;
+  }
+
+  .motion-ready .motion-card.is-visible {
+    opacity: 1;
+    transform: none;
   }
 
   .mouse-gradient {
@@ -175,5 +337,16 @@ body {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.001ms !important;
+  }
+
+  .page-transition-overlay {
+    display: none;
+  }
+
+  .motion-ready .motion-section,
+  .motion-ready .motion-card {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
   }
 }
