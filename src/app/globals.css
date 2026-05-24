@@ -97,13 +97,7 @@ body {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(237, 244, 251, 0.65) 0%,
-    rgba(237, 244, 251, 0.72) 34%,
-    rgba(237, 244, 251, 0.8) 68%,
-    rgba(237, 244, 251, 0.85) 100%
-  );
+  background: rgba(237, 244, 251, 0.5);
 }
 
 .post-hero-wallpaper {
