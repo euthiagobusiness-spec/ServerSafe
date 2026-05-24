@@ -15,6 +15,7 @@ export default function Home() {
   return (
     <div className="ambient-stage relative min-h-screen overflow-hidden bg-[#edf4fb] text-slate-950">
       <div className="site-background" aria-hidden="true" />
+      <div className="wallpaper-fade" aria-hidden="true" />
       <PageMotion />
       <Header />
       <main className="content-layer">

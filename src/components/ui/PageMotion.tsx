@@ -45,8 +45,8 @@ export function PageMotion() {
     );
 
     Array.from(document.querySelectorAll<HTMLElement>(revealSelector)).forEach((element, index) => {
-      element.style.setProperty("--fade-delay", `${Math.min(index % 5, 4) * 70}ms`);
-      element.style.setProperty("--reveal-delay", `${Math.min(index % 5, 4) * 82}ms`);
+      element.style.setProperty("--fade-delay", `${Math.min(index % 4, 3) * 38}ms`);
+      element.style.setProperty("--reveal-delay", `${Math.min(index % 4, 3) * 42}ms`);
       observer.observe(element);
     });
 
