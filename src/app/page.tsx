@@ -13,7 +13,7 @@ import { PageMotion } from "@/components/ui/PageMotion";
 
 export default function Home() {
   return (
-    <div className="ambient-stage relative min-h-screen overflow-hidden bg-[#edf4fb] text-slate-950">
+    <div className="dark-site ambient-stage relative min-h-screen overflow-hidden bg-[#edf4fb] text-slate-950">
       <PageMotion />
       <Header />
       <main className="content-layer">

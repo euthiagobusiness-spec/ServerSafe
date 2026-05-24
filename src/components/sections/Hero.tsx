@@ -69,11 +69,11 @@ function HeroCoreVisual() {
 
 export function Hero() {
   return (
-    <section id="top" className="relative isolate overflow-hidden bg-transparent pb-16 pt-10 sm:pt-16 lg:pb-24">
-      <div className="absolute inset-0 -z-30 scale-[1.015] bg-[url('/assets/brand/server-safe-3d-wallpaper.png')] bg-cover bg-center opacity-75 blur-[3px]" aria-hidden="true" />
-      <div className="absolute inset-0 -z-20 bg-[linear-gradient(90deg,rgba(245,248,251,0.76)_0%,rgba(245,248,251,0.26)_42%,rgba(245,248,251,0.03)_100%)]" aria-hidden="true" />
+    <section id="top" className="hero-section relative isolate overflow-hidden bg-transparent pb-16 pt-10 sm:pt-16 lg:pb-24">
+      <div className="hero-wallpaper absolute inset-0 -z-30 scale-[1.015] bg-[url('/assets/brand/server-safe-3d-wallpaper.png')] bg-cover bg-center opacity-75 blur-[3px]" aria-hidden="true" />
+      <div className="hero-wash absolute inset-0 -z-20 bg-[linear-gradient(90deg,rgba(245,248,251,0.76)_0%,rgba(245,248,251,0.26)_42%,rgba(245,248,251,0.03)_100%)]" aria-hidden="true" />
       <TechGrid />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-white/18 via-white/6 to-white/5" />
+      <div className="hero-sheen absolute inset-0 -z-10 bg-gradient-to-b from-white/18 via-white/6 to-white/5" />
       <div className="mx-auto grid max-w-7xl items-start gap-12 px-4 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8">
         <div className="relative z-10 max-w-3xl">
           <SectionBadge>Infraestrutura empresarial</SectionBadge>

@@ -64,6 +64,11 @@ body {
   text-rendering: geometricPrecision;
 }
 
+body:has(.dark-site) {
+  background: #050b14;
+  color: #eaf4ff;
+}
+
 .site-background {
   position: absolute;
   top: 0;
@@ -104,6 +109,175 @@ body {
   position: relative;
   isolation: isolate;
   overflow: hidden;
+}
+
+.dark-site {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(37, 99, 235, 0.22), transparent 36%),
+    radial-gradient(circle at 82% 12%, rgba(6, 182, 212, 0.14), transparent 34%),
+    linear-gradient(180deg, #07111f 0%, #050b14 42%, #030712 100%) !important;
+  color: #eaf4ff !important;
+}
+
+.dark-site .site-background {
+  background-image:
+    linear-gradient(90deg, rgba(5, 11, 20, 0.9) 0%, rgba(5, 11, 20, 0.68) 42%, rgba(5, 11, 20, 0.42) 100%),
+    linear-gradient(180deg, rgba(3, 7, 18, 0.58) 0%, rgba(3, 7, 18, 0.34) 58%, rgba(3, 7, 18, 0.82) 100%),
+    url("/assets/brand/server-safe-3d-wallpaper.png");
+  filter: saturate(1.02) brightness(0.56) contrast(1.08);
+  opacity: 0.82;
+}
+
+.dark-site .site-background::after {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(37, 99, 235, 0.2), transparent 34%),
+    radial-gradient(circle at 78% 12%, rgba(6, 182, 212, 0.16), transparent 36%),
+    linear-gradient(180deg, rgba(3, 7, 18, 0.14), rgba(3, 7, 18, 0.58));
+}
+
+.dark-site .wallpaper-fade {
+  background: rgba(3, 7, 18, 0.7);
+}
+
+.dark-site .hero-section {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(37, 99, 235, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(3, 7, 18, 0.18), rgba(3, 7, 18, 0.48));
+}
+
+.dark-site .hero-wallpaper {
+  filter: blur(3px) saturate(1.02) brightness(0.44) contrast(1.08);
+  opacity: 0.62 !important;
+}
+
+.dark-site .hero-wash {
+  background:
+    linear-gradient(90deg, rgba(3, 7, 18, 0.92) 0%, rgba(5, 11, 20, 0.76) 44%, rgba(5, 11, 20, 0.46) 100%) !important;
+}
+
+.dark-site .hero-sheen {
+  background: linear-gradient(180deg, rgba(14, 116, 144, 0.1), rgba(3, 7, 18, 0.28) 58%, rgba(3, 7, 18, 0.56)) !important;
+}
+
+.dark-site header {
+  border-color: rgba(125, 211, 252, 0.18) !important;
+  background: rgba(5, 11, 20, 0.78) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.26) !important;
+}
+
+.dark-site footer {
+  border-color: rgba(125, 211, 252, 0.14) !important;
+  background: rgba(5, 11, 20, 0.84) !important;
+}
+
+.dark-site header img,
+.dark-site footer img {
+  filter: drop-shadow(0 8px 20px rgba(59, 130, 246, 0.24));
+}
+
+.dark-site :where(.bg-white, .bg-white\/18, .bg-white\/34, .bg-white\/38, .bg-white\/42, .bg-white\/48, .bg-white\/58, .bg-white\/62, .bg-white\/70, .bg-white\/72) {
+  background-color: rgba(15, 23, 42, 0.58) !important;
+}
+
+.dark-site :where(.bg-blue-50, .bg-blue-50\/60) {
+  background-color: rgba(14, 116, 144, 0.18) !important;
+}
+
+.dark-site :where(.bg-emerald-50) {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+}
+
+.dark-site :where(.border-white\/60, .border-white\/70, .border-slate-200, .border-slate-300, .border-blue-100\/80, .border-blue-200) {
+  border-color: rgba(125, 211, 252, 0.22) !important;
+}
+
+.dark-site :where(.text-slate-950, .text-slate-900, .text-slate-800) {
+  color: #f8fbff !important;
+}
+
+.dark-site h1 {
+  text-shadow: 0 18px 44px rgba(0, 0, 0, 0.48);
+}
+
+.dark-site :where(.text-slate-700, .text-slate-600, .text-slate-500) {
+  color: #b8c7d9 !important;
+}
+
+.dark-site :where(.text-blue-900, .text-blue-800, .text-blue-700) {
+  color: #7dd3fc !important;
+}
+
+.dark-site :where(.text-cyan-700) {
+  color: #67e8f9 !important;
+}
+
+.dark-site :where(.text-emerald-700) {
+  color: #6ee7b7 !important;
+}
+
+.dark-site .glass-panel {
+  border-color: rgba(125, 211, 252, 0.2);
+  background: rgba(15, 23, 42, 0.5) !important;
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark-site .glass-panel::before {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(125, 211, 252, 0.06) 32%, transparent 56%),
+    linear-gradient(315deg, rgba(37, 99, 235, 0.16), transparent 46%);
+  opacity: 1;
+}
+
+.dark-site .glass-panel::after {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.22),
+    inset 0 0 28px rgba(125, 211, 252, 0.06);
+}
+
+.dark-site .hover-lift:hover {
+  border-color: rgba(125, 211, 252, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 32px 80px rgba(0, 0, 0, 0.42),
+    0 12px 32px rgba(14, 165, 233, 0.16);
+}
+
+.dark-site .interactive-glow-card::before {
+  background: radial-gradient(
+    260px circle at var(--x, 50%) var(--y, 38%),
+    rgba(14, 165, 233, 0.2),
+    rgba(6, 182, 212, 0.08) 34%,
+    transparent 64%
+  );
+}
+
+.dark-site .interactive-glow-card::after {
+  background: linear-gradient(115deg, transparent 8%, rgba(255, 255, 255, 0.16) 18%, transparent 32%);
+}
+
+.dark-site .motion-section::before {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.16), transparent 58%),
+    radial-gradient(circle at 12% 60%, rgba(6, 182, 212, 0.12), transparent 42%);
+}
+
+.dark-site.ambient-stage::before {
+  background:
+    radial-gradient(58rem circle at var(--page-mx) var(--page-my), rgba(37, 99, 235, 0.18), transparent 48%),
+    radial-gradient(44rem circle at calc(var(--page-mx) + 14%) calc(var(--page-my) + 18%), rgba(6, 182, 212, 0.14), transparent 54%);
+  opacity: 0.7;
+}
+
+.dark-site .site-background + .wallpaper-fade + .relative,
+.dark-site .content-layer {
+  color: #eaf4ff;
+}
+
+.dark-site :where(a:hover) {
+  color: #7dd3fc;
 }
 
 .content-layer {
