@@ -5,7 +5,7 @@ import { SectionBadge } from "@/components/ui/SectionBadge";
 
 export function Industries() {
   return (
-    <section id="setores" className="bg-white/18 py-20 backdrop-blur-[1px] sm:py-28">
+    <section id="setores" className="bg-white/18 py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
           <div>

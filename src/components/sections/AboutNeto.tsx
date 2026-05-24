@@ -23,15 +23,15 @@ const expertise = [
 
 export function AboutNeto() {
   return (
-    <section id="sobre" className="relative overflow-hidden bg-white/34 py-20 backdrop-blur-[2px] sm:py-28">
+    <section id="sobre" className="relative overflow-hidden bg-white/34 py-20 sm:py-28">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(255,255,255,0.44),transparent_30%)]" />
       <div className="relative mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
         <GlassCard className="p-6 sm:p-8">
-          <div className="relative min-h-[360px] overflow-hidden rounded-[8px] border border-white/60 bg-white/48 p-6 shadow-sm backdrop-blur-md">
+          <div className="relative min-h-[360px] overflow-hidden rounded-[8px] border border-white/60 bg-white/48 p-6 shadow-sm">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-700 via-cyan-600 to-slate-300" />
             <div className="grid gap-4">
               {expertise.map(({ title, description, icon: Icon }) => (
-                <div key={title} className="rounded-[8px] border border-white/60 bg-white/62 p-5 shadow-sm backdrop-blur-sm">
+                <div key={title} className="rounded-[8px] border border-white/60 bg-white/62 p-5 shadow-sm">
                   <div className="flex items-start gap-4">
                     <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] border border-blue-200 bg-blue-50">
                       <Icon className="h-5 w-5 text-blue-700" aria-hidden="true" />

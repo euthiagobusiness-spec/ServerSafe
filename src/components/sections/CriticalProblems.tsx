@@ -7,7 +7,7 @@ import { SectionBadge } from "@/components/ui/SectionBadge";
 
 export function CriticalProblems() {
   return (
-    <section className="relative overflow-hidden bg-white/34 py-20 backdrop-blur-[2px] sm:py-28">
+    <section className="relative overflow-hidden bg-white/34 py-20 sm:py-28">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
       <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.82fr_1.18fr] lg:px-8">
         <div>

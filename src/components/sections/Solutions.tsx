@@ -5,7 +5,7 @@ import { SectionBadge } from "@/components/ui/SectionBadge";
 
 export function Solutions() {
   return (
-    <section id="solucoes" className="relative overflow-hidden bg-white/18 py-20 backdrop-blur-[1px] sm:py-28">
+    <section id="solucoes" className="relative overflow-hidden bg-white/18 py-20 sm:py-28">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_10%,rgba(255,255,255,0.42),transparent_30%)]" />
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl">

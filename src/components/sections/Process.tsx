@@ -5,7 +5,7 @@ import { SectionBadge } from "@/components/ui/SectionBadge";
 
 export function Process() {
   return (
-    <section id="processo" className="bg-white/18 py-20 backdrop-blur-[1px] sm:py-28">
+    <section id="processo" className="bg-white/18 py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl">
           <SectionBadge>Processo de trabalho</SectionBadge>

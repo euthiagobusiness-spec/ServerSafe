@@ -12,7 +12,7 @@ function HeroCoreVisual() {
   return (
     <div className="hero-visual relative mx-auto w-full max-w-[560px]">
       <GlassCard className="p-5 sm:p-6">
-        <div className="relative overflow-hidden rounded-[8px] border border-white/60 bg-white/38 p-5 shadow-sm backdrop-blur-md">
+        <div className="relative overflow-hidden rounded-[8px] border border-white/60 bg-white/38 p-5 shadow-sm">
           <div className="pointer-events-none absolute -right-10 -top-10 h-64 w-64 rounded-full bg-blue-400/8" />
           <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-4">
             <div>
@@ -32,14 +32,14 @@ function HeroCoreVisual() {
               { label: "Segurança", icon: ShieldCheck },
               { label: "Rede", icon: Network },
             ].map(({ label, icon: Icon }) => (
-              <div key={label} className="rounded-[8px] border border-white/60 bg-white/42 p-4 shadow-sm backdrop-blur-sm">
+              <div key={label} className="rounded-[8px] border border-white/60 bg-white/42 p-4 shadow-sm">
                 <Icon className="h-6 w-6 text-blue-700" aria-hidden="true" />
                 <p className="mt-3 text-sm font-semibold text-slate-900">{label}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-5 rounded-[8px] border border-white/60 bg-white/42 p-4 shadow-sm backdrop-blur-sm">
+          <div className="mt-5 rounded-[8px] border border-white/60 bg-white/42 p-4 shadow-sm">
             <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
               <span>Continuidade</span>
               <span className="text-blue-700">Alta disponibilidade</span>
@@ -55,7 +55,7 @@ function HeroCoreVisual() {
             </div>
           </div>
 
-          <div className="mt-5 flex items-center gap-3 rounded-[8px] border border-blue-100/80 bg-blue-50/60 px-4 py-3 backdrop-blur-sm">
+          <div className="mt-5 flex items-center gap-3 rounded-[8px] border border-blue-100/80 bg-blue-50/60 px-4 py-3">
             <DatabaseBackup className="h-5 w-5 text-blue-700" aria-hidden="true" />
             <span className="text-sm font-semibold text-slate-800">
               Backup, firewall, failover e resposta planejada

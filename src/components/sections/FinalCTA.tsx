@@ -9,7 +9,7 @@ import { contactLinks } from "@/config/site";
 
 export function FinalCTA() {
   return (
-    <section id="diagnostico" className="relative overflow-hidden bg-white/34 px-4 py-20 backdrop-blur-[2px] sm:px-6 sm:py-28 lg:px-8">
+    <section id="diagnostico" className="relative overflow-hidden bg-white/34 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
       <FloatingOrb className="left-1/2 top-0 h-80 w-[620px] -translate-x-1/2" intensity="medium" />
       <div className="relative mx-auto max-w-5xl">
         <GlassCard className="px-6 py-10 text-center sm:px-10 sm:py-14">
@@ -38,7 +38,7 @@ export function FinalCTA() {
               <a
                 key={href}
                 href={href}
-                className="inline-flex min-h-12 items-center justify-center gap-3 rounded-[8px] border border-white/70 bg-white/58 px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-sm transition hover:border-blue-200 hover:bg-blue-50/70 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
+                className="inline-flex min-h-12 items-center justify-center gap-3 rounded-[8px] border border-white/70 bg-white/58 px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/70 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
               >
                 <Icon className="h-4 w-4 text-blue-700" aria-hidden="true" />
                 {label}

@@ -1,96 +1,143 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
-const OBSERVED_SELECTOR = ".fade-stage, .reveal-surface";
+const revealSelector = ".fade-stage, .reveal-surface";
+const motionSurfaceSelector = ".motion-surface";
+const glowSurfaceSelector = ".interactive-glow-card";
 
-function canAnimate() {
-  return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
+type PointerFrame = {
+  pageX: number;
+  pageY: number;
+  clientX: number;
+  clientY: number;
+  surface: HTMLElement | null;
+  glowSurface: HTMLElement | null;
+  x: number;
+  y: number;
+  rotateX: number;
+  rotateY: number;
+};
 
-function isDesktopMotion() {
-  return canAnimate() && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+function supportsDesktopPointer() {
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 }
 
 export function PageMotion() {
-  const timeoutRef = useRef<number | null>(null);
-  const pointerFrameRef = useRef<number | null>(null);
-  const ambientPrimaryRef = useRef<HTMLDivElement>(null);
-  const ambientSecondaryRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
     document.documentElement.classList.add("motion-ready");
-
-    if (!canAnimate()) {
-      document.querySelectorAll(OBSERVED_SELECTOR).forEach((element) => {
-        element.classList.add("is-visible");
-      });
-      return undefined;
-    }
-
-    const observed = document.querySelectorAll<HTMLElement>(OBSERVED_SELECTOR);
 
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          const element = entry.target as HTMLElement;
-          element.classList.toggle("is-visible", entry.isIntersecting);
-          element.dataset.visible = String(entry.isIntersecting);
-        });
+        for (const entry of entries) {
+          const target = entry.target as HTMLElement;
+          target.classList.toggle("is-visible", entry.isIntersecting);
+          target.dataset.visible = entry.isIntersecting ? "true" : "false";
+        }
       },
       {
-        rootMargin: "0px 0px -10% 0px",
-        threshold: [0.08, 0.18],
+        root: null,
+        rootMargin: prefersReducedMotion ? "-4% 0px -6% 0px" : "-8% 0px -10% 0px",
+        threshold: prefersReducedMotion ? 0.08 : 0.16,
       },
     );
 
-    observed.forEach((element, index) => {
-      element.style.setProperty("--fade-delay", `${Math.min(index % 6, 5) * 55}ms`);
-      element.style.setProperty("--reveal-delay", `${Math.min(index % 6, 5) * 45}ms`);
+    Array.from(document.querySelectorAll<HTMLElement>(revealSelector)).forEach((element, index) => {
+      element.style.setProperty("--fade-delay", `${Math.min(index % 5, 4) * 70}ms`);
+      element.style.setProperty("--reveal-delay", `${Math.min(index % 5, 4) * 82}ms`);
       observer.observe(element);
     });
 
-    return () => {
-      observer.disconnect();
-      document.documentElement.classList.remove("motion-ready");
+    const canTrackPointer = supportsDesktopPointer();
+    let animationFrame = 0;
+    let pendingFrame: PointerFrame | null = null;
+
+    const applyPointerFrame = () => {
+      animationFrame = 0;
+      if (!pendingFrame) return;
+
+      const frame = pendingFrame;
+      pendingFrame = null;
+
+      document.documentElement.style.setProperty("--page-mx", `${frame.pageX.toFixed(2)}%`);
+      document.documentElement.style.setProperty("--page-my", `${frame.pageY.toFixed(2)}%`);
+      document.documentElement.style.setProperty("--cursor-x", `${frame.clientX.toFixed(1)}px`);
+      document.documentElement.style.setProperty("--cursor-y", `${frame.clientY.toFixed(1)}px`);
+
+      if (frame.surface) {
+        frame.surface.style.setProperty("--x", `${frame.x.toFixed(2)}%`);
+        frame.surface.style.setProperty("--y", `${frame.y.toFixed(2)}%`);
+        frame.surface.style.setProperty("--rx", `${frame.rotateX.toFixed(3)}deg`);
+        frame.surface.style.setProperty("--ry", `${frame.rotateY.toFixed(3)}deg`);
+      }
+
+      if (frame.glowSurface && frame.glowSurface !== frame.surface) {
+        frame.glowSurface.style.setProperty("--x", `${frame.x.toFixed(2)}%`);
+        frame.glowSurface.style.setProperty("--y", `${frame.y.toFixed(2)}%`);
+        frame.glowSurface.style.setProperty("--rx", `${frame.rotateX.toFixed(3)}deg`);
+        frame.glowSurface.style.setProperty("--ry", `${frame.rotateY.toFixed(3)}deg`);
+      }
     };
-  }, []);
 
-  useEffect(() => {
-    if (!isDesktopMotion()) return undefined;
+    const onPointerMove = (event: PointerEvent) => {
+      if (!canTrackPointer || event.pointerType === "touch") return;
 
-    const handlePointerMove = (event: PointerEvent) => {
-      if (pointerFrameRef.current) return;
+      const pageX = (event.clientX / window.innerWidth) * 100;
+      const pageY = (event.clientY / window.innerHeight) * 100;
+      const eventTarget = event.target as Element | null;
+      const surface = eventTarget?.closest<HTMLElement>(motionSurfaceSelector) ?? null;
+      const glowSurface = eventTarget?.closest<HTMLElement>(glowSurfaceSelector) ?? null;
 
-      const x = event.clientX;
-      const y = event.clientY;
-      pointerFrameRef.current = window.requestAnimationFrame(() => {
-        const primaryX = x;
-        const primaryY = y;
-        const secondaryX = x + window.innerWidth * 0.18;
-        const secondaryY = y + window.innerHeight * 0.22;
+      let x = 50;
+      let y = 38;
+      let rotateX = 0;
+      let rotateY = 0;
 
-        if (ambientPrimaryRef.current) {
-          ambientPrimaryRef.current.style.transform = `translate3d(${primaryX}px, ${primaryY}px, 0) translate3d(-50%, -50%, 0)`;
-        }
+      if (surface) {
+        const rect = surface.getBoundingClientRect();
+        x = ((event.clientX - rect.left) / rect.width) * 100;
+        y = ((event.clientY - rect.top) / rect.height) * 100;
+        rotateX = prefersReducedMotion ? (50 - y) * 0.01 : (50 - y) * 0.03;
+        rotateY = prefersReducedMotion ? (x - 50) * 0.012 : (x - 50) * 0.04;
+      }
 
-        if (ambientSecondaryRef.current) {
-          ambientSecondaryRef.current.style.transform = `translate3d(${secondaryX}px, ${secondaryY}px, 0) translate3d(-50%, -50%, 0)`;
-        }
+      pendingFrame = {
+        pageX,
+        pageY,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        surface,
+        glowSurface,
+        x,
+        y,
+        rotateX,
+        rotateY,
+      };
 
-        pointerFrameRef.current = null;
-      });
+      if (!animationFrame) {
+        animationFrame = window.requestAnimationFrame(applyPointerFrame);
+      }
     };
 
-    window.addEventListener("pointermove", handlePointerMove, { passive: true });
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      if (pointerFrameRef.current) window.cancelAnimationFrame(pointerFrameRef.current);
-    };
-  }, []);
+    const onPointerOut = (event: PointerEvent) => {
+      const eventTarget = event.target as Element | null;
+      const relatedTarget = event.relatedTarget as Element | null;
+      const surface = eventTarget?.closest<HTMLElement>(motionSurfaceSelector);
+      const glowSurface = eventTarget?.closest<HTMLElement>(glowSurfaceSelector);
 
-  useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
+      for (const target of [surface, glowSurface]) {
+        if (!target) continue;
+        if (relatedTarget && target.contains(relatedTarget)) continue;
+        target.style.setProperty("--x", "50%");
+        target.style.setProperty("--y", "38%");
+        target.style.setProperty("--rx", "0deg");
+        target.style.setProperty("--ry", "0deg");
+      }
+    };
+
+    const onAnchorClick = (event: MouseEvent) => {
       const link = (event.target as Element | null)?.closest<HTMLAnchorElement>("a[href^='#']");
       if (!link) return;
 
@@ -101,60 +148,36 @@ export function PageMotion() {
       if (!target) return;
 
       event.preventDefault();
+      target.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
+      window.history.pushState(null, "", hash);
 
-      const animate = isDesktopMotion();
-      if (animate) {
-        document.documentElement.style.setProperty("--cursor-x", `${event.clientX}px`);
-        document.documentElement.style.setProperty("--cursor-y", `${event.clientY}px`);
-      }
-
-      const scrollTarget = () => {
-        target.scrollIntoView({ behavior: animate ? "smooth" : "auto", block: "start" });
-        window.history.pushState(null, "", hash);
-
-        window.setTimeout(() => {
+      window.setTimeout(
+        () => {
           target.setAttribute("tabindex", "-1");
           target.focus({ preventScroll: true });
-        }, animate ? 420 : 0);
-      };
-
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-      }
-
-      if (animate) {
-        document.documentElement.classList.add("is-page-transitioning");
-        timeoutRef.current = window.setTimeout(() => {
-          document.documentElement.classList.remove("is-page-transitioning");
-        }, 760);
-      }
-
-      if (animate && "startViewTransition" in document) {
-        const documentWithTransition = document as Document & {
-          startViewTransition: (callback: () => void) => { finished: Promise<void> };
-        };
-
-        documentWithTransition.startViewTransition(scrollTarget).finished.finally(() => {
-          document.documentElement.classList.remove("is-page-transitioning");
-        });
-        return;
-      }
-
-      scrollTarget();
+        },
+        prefersReducedMotion ? 0 : 360,
+      );
     };
 
-    document.addEventListener("click", handleClick);
+    document.addEventListener("pointermove", onPointerMove, { passive: true });
+    document.addEventListener("pointerout", onPointerOut, { passive: true });
+    document.addEventListener("click", onAnchorClick);
+
     return () => {
-      document.removeEventListener("click", handleClick);
-      if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+      observer.disconnect();
+      document.documentElement.classList.remove("motion-ready");
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerout", onPointerOut);
+      document.removeEventListener("click", onAnchorClick);
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
     };
   }, []);
 
   return (
     <>
-      <div ref={ambientPrimaryRef} className="ambient-orb ambient-orb-primary" aria-hidden="true" />
-      <div ref={ambientSecondaryRef} className="ambient-orb ambient-orb-secondary" aria-hidden="true" />
-      <div className="page-transition-overlay" aria-hidden="true" />
+      <div className="ambient-orb ambient-orb-primary" aria-hidden="true" />
+      <div className="ambient-orb ambient-orb-secondary" aria-hidden="true" />
     </>
   );
 }

@@ -5,7 +5,7 @@ import { SectionBadge } from "@/components/ui/SectionBadge";
 
 export function Governance() {
   return (
-    <section id="governanca" className="relative overflow-hidden bg-white/18 py-20 backdrop-blur-[1px] sm:py-28">
+    <section id="governanca" className="relative overflow-hidden bg-white/18 py-20 sm:py-28">
       <div className="relative mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.85fr_1.15fr] lg:px-8">
         <div>
           <SectionBadge>Criptografia, LGPD e governança</SectionBadge>

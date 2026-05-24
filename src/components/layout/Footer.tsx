@@ -5,7 +5,7 @@ import { contactLinks, site } from "@/config/site";
 
 export function Footer() {
   return (
-    <footer className="content-layer border-t border-white/60 bg-white/70 backdrop-blur-sm">
+    <footer className="content-layer border-t border-white/60 bg-white/70">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.2fr_1fr_1fr_1fr] lg:px-8">
         <div>
           <Image
