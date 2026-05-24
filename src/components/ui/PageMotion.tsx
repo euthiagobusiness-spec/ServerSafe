@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-const OBSERVED_SELECTOR = ".motion-section, .motion-card";
+const OBSERVED_SELECTOR = ".fade-stage, .reveal-surface";
 
 function canAnimate() {
   return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -14,6 +14,7 @@ function isDesktopMotion() {
 
 export function PageMotion() {
   const timeoutRef = useRef<number | null>(null);
+  const pointerFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.add("motion-ready");
@@ -25,25 +26,53 @@ export function PageMotion() {
       return undefined;
     }
 
+    const observed = document.querySelectorAll<HTMLElement>(OBSERVED_SELECTOR);
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
+          const element = entry.target as HTMLElement;
+          element.classList.toggle("is-visible", entry.isIntersecting);
+          element.dataset.visible = String(entry.isIntersecting);
         });
       },
       {
-        rootMargin: "0px 0px -8% 0px",
-        threshold: 0.08,
+        rootMargin: "0px 0px -10% 0px",
+        threshold: [0.08, 0.18],
       },
     );
 
-    document.querySelectorAll(OBSERVED_SELECTOR).forEach((element) => observer.observe(element));
+    observed.forEach((element, index) => {
+      element.style.setProperty("--fade-delay", `${Math.min(index % 6, 5) * 55}ms`);
+      element.style.setProperty("--reveal-delay", `${Math.min(index % 6, 5) * 45}ms`);
+      observer.observe(element);
+    });
 
     return () => {
       observer.disconnect();
       document.documentElement.classList.remove("motion-ready");
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktopMotion()) return undefined;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (pointerFrameRef.current) return;
+
+      const x = event.clientX;
+      const y = event.clientY;
+      pointerFrameRef.current = window.requestAnimationFrame(() => {
+        document.documentElement.style.setProperty("--pointer-x", `${x}px`);
+        document.documentElement.style.setProperty("--pointer-y", `${y}px`);
+        pointerFrameRef.current = null;
+      });
+    };
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      if (pointerFrameRef.current) window.cancelAnimationFrame(pointerFrameRef.current);
     };
   }, []);
 
@@ -108,5 +137,10 @@ export function PageMotion() {
     };
   }, []);
 
-  return <div className="page-transition-overlay" aria-hidden="true" />;
+  return (
+    <>
+      <div className="pointer-liquid-glass" aria-hidden="true" />
+      <div className="page-transition-overlay" aria-hidden="true" />
+    </>
+  );
 }
