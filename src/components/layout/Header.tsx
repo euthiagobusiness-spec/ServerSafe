@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/60 bg-white/72 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
         <a
           href="#top"
           className="group flex items-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
@@ -19,7 +19,7 @@ export function Header() {
             width={1387}
             height={404}
             priority
-            className="h-10 w-auto sm:h-11"
+            className="h-9 w-auto sm:h-11"
           />
         </a>
 
@@ -35,7 +35,7 @@ export function Header() {
           ))}
         </nav>
 
-        <Button href="#diagnostico" variant="tech" className="hidden min-h-10 px-4 py-2 text-xs sm:inline-flex">
+        <Button href="#diagnostico" variant="tech" className="min-h-9 px-3 py-2 text-[0.65rem] sm:min-h-10 sm:px-4 sm:text-xs">
           {site.diagnosticCta}
         </Button>
       </div>

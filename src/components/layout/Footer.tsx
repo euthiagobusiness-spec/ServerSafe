@@ -6,8 +6,8 @@ import { contactLinks, site } from "@/config/site";
 export function Footer() {
   return (
     <footer className="content-layer border-t border-white/60 bg-white/70">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.2fr_1fr_1fr_1fr] lg:px-8">
-        <div>
+      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-6 gap-y-8 px-4 py-10 sm:px-6 sm:py-12 lg:grid-cols-[1.2fr_1fr_1fr_1fr] lg:px-8">
+        <div className="col-span-2 lg:col-span-1">
           <Image
             src="/assets/brand/server-safe-lockup-dark-transparent.png"
             alt={site.name}
@@ -15,7 +15,7 @@ export function Footer() {
             height={404}
             className="h-auto w-56"
           />
-          <p className="mt-5 max-w-md text-sm leading-7 text-slate-600">
+          <p className="mt-4 max-w-md text-sm leading-6 text-slate-600 sm:mt-5 sm:leading-7">
             Infraestrutura segura para empresas que dependem de tecnologia todos os dias.
             Ambientes protegidos, monitorados e preparados para crescer com controle.
           </p>
@@ -53,7 +53,7 @@ export function Footer() {
               <a
                 key={href}
                 href={href}
-                className="inline-flex items-center gap-3 text-sm text-slate-600 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
+                className="inline-flex min-w-0 items-center gap-3 break-all text-sm text-slate-600 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
               >
                 <Icon className="h-4 w-4 text-blue-700" aria-hidden="true" />
                 {label}
@@ -62,7 +62,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div id="seguranca-confidencialidade">
+        <div id="seguranca-confidencialidade" className="col-span-2 lg:col-span-1">
           <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-slate-900">
             Segurança e confidencialidade
           </h2>

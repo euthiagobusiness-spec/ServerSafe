@@ -569,15 +569,34 @@ body:has(.dark-site) {
     scroll-padding-top: 76px;
   }
 
+  .motion-section {
+    content-visibility: visible;
+    contain-intrinsic-size: auto;
+    perspective: none;
+  }
+
   .site-background {
+    right: -18px;
+    bottom: -18px;
+    left: -18px;
     transition: none;
+  }
+
+  .hero-wallpaper {
+    scale: 1 !important;
+    transform: none !important;
+  }
+
+  .hero-bar {
+    max-height: 58px;
   }
 
   .ambient-stage::before {
     display: none;
   }
 
-  .ambient-orb {
+  .ambient-orb,
+  .floating-orb {
     display: none;
   }
 
