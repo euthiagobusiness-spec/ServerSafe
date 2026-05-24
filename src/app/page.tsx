@@ -14,37 +14,41 @@ import { PageMotion } from "@/components/ui/PageMotion";
 export default function Home() {
   return (
     <div className="ambient-stage relative min-h-screen overflow-hidden bg-[#edf4fb] text-slate-950">
-      <div className="site-background" aria-hidden="true" />
-      <div className="wallpaper-fade" aria-hidden="true" />
       <PageMotion />
       <Header />
       <main className="content-layer">
         <div className="motion-section fade-stage is-visible">
           <Hero />
         </div>
-        <div className="motion-section fade-stage">
-          <CriticalProblems />
-        </div>
-        <div className="motion-section fade-stage">
-          <Solutions />
-        </div>
-        <div className="motion-section fade-stage">
-          <Continuity />
-        </div>
-        <div className="motion-section fade-stage">
-          <Industries />
-        </div>
-        <div className="motion-section fade-stage">
-          <AboutNeto />
-        </div>
-        <div className="motion-section fade-stage">
-          <Governance />
-        </div>
-        <div className="motion-section fade-stage">
-          <Process />
-        </div>
-        <div className="motion-section fade-stage">
-          <FinalCTA />
+        <div className="post-hero-wallpaper">
+          <div className="site-background" aria-hidden="true" />
+          <div className="wallpaper-fade" aria-hidden="true" />
+          <div className="relative z-10">
+            <div className="motion-section fade-stage">
+              <CriticalProblems />
+            </div>
+            <div className="motion-section fade-stage">
+              <Solutions />
+            </div>
+            <div className="motion-section fade-stage">
+              <Continuity />
+            </div>
+            <div className="motion-section fade-stage">
+              <Industries />
+            </div>
+            <div className="motion-section fade-stage">
+              <AboutNeto />
+            </div>
+            <div className="motion-section fade-stage">
+              <Governance />
+            </div>
+            <div className="motion-section fade-stage">
+              <Process />
+            </div>
+            <div className="motion-section fade-stage">
+              <FinalCTA />
+            </div>
+          </div>
         </div>
       </main>
       <Footer />

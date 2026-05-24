@@ -65,8 +65,11 @@ body {
 }
 
 .site-background {
-  position: fixed;
-  inset: -34px;
+  position: absolute;
+  top: 0;
+  right: -34px;
+  bottom: -34px;
+  left: -34px;
   z-index: 0;
   pointer-events: none;
   background-image:
@@ -77,7 +80,6 @@ body {
   background-size: cover;
   filter: saturate(1.08);
   opacity: 0.96;
-  transform: scale(1.018);
 }
 
 .site-background::after {
@@ -102,6 +104,12 @@ body {
     rgba(237, 244, 251, 0.8) 68%,
     rgba(237, 244, 251, 0.85) 100%
   );
+}
+
+.post-hero-wallpaper {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
 }
 
 .content-layer {
@@ -394,7 +402,6 @@ body {
   }
 
   .site-background {
-    transform: scale(1.018);
     transition: none;
   }
 
