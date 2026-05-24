@@ -14,10 +14,10 @@ export function Header() {
           aria-label="ServerSafe - inicio"
         >
           <Image
-            src="/assets/brand/server-safe-wordmark-cropped.png"
+            src="/assets/brand/server-safe-lockup-dark-transparent.png"
             alt={site.name}
-            width={1683}
-            height={387}
+            width={1387}
+            height={404}
             priority
             className="h-10 w-auto sm:h-11"
           />
