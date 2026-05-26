@@ -1,5 +1,7 @@
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 
+import { cn } from "@/lib/cn";
+
 type ButtonVariant = "primary" | "secondary" | "ghost" | "outline" | "tech";
 
 type ButtonProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
@@ -22,10 +24,6 @@ const variants: Record<ButtonVariant, string> = {
   tech:
     "border border-blue-200 bg-blue-50 text-blue-800 shadow-sm hover:border-blue-300 hover:bg-blue-100",
 };
-
-function cn(...classes: Array<string | undefined | false>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export function Button({
   children,

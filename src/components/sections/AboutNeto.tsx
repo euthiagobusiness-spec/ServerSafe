@@ -1,7 +1,9 @@
 import { ClipboardCheck, FileLock, Server, ShieldCheck } from "lucide-react";
 
 import { GlassCard } from "@/components/ui/GlassCard";
-import { SectionBadge } from "@/components/ui/SectionBadge";
+import { IconFrame } from "@/components/ui/IconFrame";
+import { SectionIntro } from "@/components/ui/SectionIntro";
+import { SectionShell } from "@/components/ui/SectionShell";
 
 const expertise = [
   {
@@ -23,8 +25,11 @@ const expertise = [
 
 export function AboutNeto() {
   return (
-    <section id="sobre" className="relative overflow-hidden bg-white/34 py-14 sm:py-28">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(255,255,255,0.44),transparent_30%)]" />
+    <SectionShell
+      id="sobre"
+      tone="solid"
+      overlay={<div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(255,255,255,0.44),transparent_30%)]" />}
+    >
       <div className="relative mx-auto grid max-w-7xl gap-8 px-4 sm:gap-10 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
         <GlassCard className="p-4 sm:p-8">
           <div className="relative overflow-hidden rounded-[8px] border border-white/60 bg-white/48 p-4 shadow-sm sm:min-h-[360px] sm:p-6">
@@ -33,9 +38,7 @@ export function AboutNeto() {
               {expertise.map(({ title, description, icon: Icon }) => (
                 <div key={title} className="rounded-[8px] border border-white/60 bg-white/62 p-4 shadow-sm sm:p-5">
                   <div className="flex items-start gap-3 sm:gap-4">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] border border-blue-200 bg-blue-50 sm:h-11 sm:w-11">
-                      <Icon className="h-5 w-5 text-blue-700" aria-hidden="true" />
-                    </span>
+                    <IconFrame icon={Icon} className="h-10 w-10 sm:h-11 sm:w-11" iconClassName="h-5 w-5 sm:h-5 sm:w-5" />
                     <div>
                       <h3 className="font-bold text-slate-950">{title}</h3>
                       <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
@@ -49,15 +52,17 @@ export function AboutNeto() {
         </GlassCard>
 
         <div className="self-center">
-          <SectionBadge>Sobre Neto</SectionBadge>
-          <h2 className="mt-5 text-balance text-[1.8rem] font-black leading-tight text-slate-950 sm:mt-6 sm:text-5xl">
-            Autoridade técnica com proximidade de operação.
-          </h2>
-          <p className="mt-4 text-base leading-7 text-slate-700 sm:mt-6 sm:text-lg sm:leading-8">
-            À frente da ServerSafe, Neto lidera projetos de infraestrutura, cloud
-            computing, servidores, redes e segurança para empresas que precisam de
-            estabilidade, proteção e continuidade operacional.
-          </p>
+          <SectionIntro
+            badge="Sobre Neto"
+            title="Autoridade técnica com proximidade de operação."
+            description={
+              <>
+                À frente da ServerSafe, Neto lidera projetos de infraestrutura, cloud
+                computing, servidores, redes e segurança para empresas que precisam de
+                estabilidade, proteção e continuidade operacional.
+              </>
+            }
+          />
           <p className="mt-4 text-sm leading-7 text-slate-600 sm:mt-5 sm:text-base sm:leading-8">
             Com mais de 10 anos de experiência, sua atuação combina governança de TI,
             segurança da informação, privacidade, criptografia aplicada e repertório em
@@ -66,6 +71,6 @@ export function AboutNeto() {
           </p>
         </div>
       </div>
-    </section>
+    </SectionShell>
   );
 }

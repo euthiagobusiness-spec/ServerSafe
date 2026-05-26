@@ -1,11 +1,12 @@
 import { ArrowRight, ShieldCheck } from "lucide-react";
 
+import { links } from "@/config/links";
+import { contactLinks } from "@/config/site";
 import { Button } from "@/components/ui/Button";
 import { FloatingOrb } from "@/components/ui/FloatingOrb";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { SectionBadge } from "@/components/ui/SectionBadge";
-import { links } from "@/config/links";
-import { contactLinks } from "@/config/site";
+import { IconFrame } from "@/components/ui/IconFrame";
+import { SectionIntro } from "@/components/ui/SectionIntro";
 
 export function FinalCTA() {
   return (
@@ -13,19 +14,20 @@ export function FinalCTA() {
       <FloatingOrb className="left-1/2 top-0 h-80 w-[620px] -translate-x-1/2" intensity="medium" />
       <div className="relative mx-auto max-w-5xl">
         <GlassCard className="px-4 py-8 text-center sm:px-10 sm:py-14">
-          <div className="mx-auto grid h-12 w-12 place-items-center rounded-[8px] border border-blue-200 bg-blue-50 sm:h-14 sm:w-14">
-            <ShieldCheck className="h-6 w-6 text-blue-700 sm:h-7 sm:w-7" aria-hidden="true" />
-          </div>
-          <div className="mt-6">
-            <SectionBadge>Próximo passo</SectionBadge>
-          </div>
-          <h2 className="mx-auto mt-5 max-w-3xl text-balance text-[1.8rem] font-black leading-tight text-slate-950 sm:mt-6 sm:text-5xl">
-            Sua infraestrutura está pronta para crescer sem parar?
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600 sm:mt-5 sm:text-lg sm:leading-8">
-            Solicite um diagnóstico técnico para entender riscos, prioridades e caminhos
-            de evolução da sua base de cloud, servidores, rede, segurança e governança.
-          </p>
+          <IconFrame icon={ShieldCheck} className="mx-auto h-12 w-12 sm:h-14 sm:w-14" iconClassName="h-6 w-6 sm:h-7 sm:w-7" />
+          <SectionIntro
+            badge="Próximo passo"
+            title="Sua infraestrutura está pronta para crescer sem parar?"
+            className="mx-auto mt-6 max-w-3xl"
+            titleClassName="mx-auto mt-5 sm:mt-6"
+            descriptionClassName="mx-auto max-w-2xl"
+            description={
+              <>
+                Solicite um diagnóstico técnico para entender riscos, prioridades e caminhos
+                de evolução da sua base de cloud, servidores, rede, segurança e governança.
+              </>
+            }
+          />
           <div className="mt-6 flex justify-center sm:mt-8">
             <Button href={links.diagnostics}>
               Solicitar diagnóstico
