@@ -80,7 +80,10 @@ body:has(.dark-site) {
   background-image:
     linear-gradient(90deg, rgba(245, 248, 251, 0.72) 0%, rgba(245, 248, 251, 0.24) 42%, rgba(245, 248, 251, 0.02) 100%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(237, 244, 251, 0.08) 58%, rgba(237, 244, 251, 0.38) 100%),
-    url("/assets/brand/server-safe-3d-wallpaper.png");
+    image-set(
+      url("/assets/brand/server-safe-3d-wallpaper.webp") type("image/webp"),
+      url("/assets/brand/server-safe-3d-wallpaper.png") type("image/png")
+    );
   background-position: center top;
   background-size: cover;
   filter: saturate(1.08);
@@ -111,6 +114,13 @@ body:has(.dark-site) {
   overflow: hidden;
 }
 
+.hero-wallpaper {
+  background-image: image-set(
+    url("/assets/brand/server-safe-3d-wallpaper.webp") type("image/webp"),
+    url("/assets/brand/server-safe-3d-wallpaper.png") type("image/png")
+  ) !important;
+}
+
 .dark-site {
   background:
     radial-gradient(circle at 18% 0%, rgba(37, 99, 235, 0.22), transparent 36%),
@@ -123,7 +133,10 @@ body:has(.dark-site) {
   background-image:
     linear-gradient(90deg, rgba(5, 11, 20, 0.9) 0%, rgba(5, 11, 20, 0.68) 42%, rgba(5, 11, 20, 0.42) 100%),
     linear-gradient(180deg, rgba(3, 7, 18, 0.58) 0%, rgba(3, 7, 18, 0.34) 58%, rgba(3, 7, 18, 0.82) 100%),
-    url("/assets/brand/server-safe-3d-wallpaper.png");
+    image-set(
+      url("/assets/brand/server-safe-3d-wallpaper.webp") type("image/webp"),
+      url("/assets/brand/server-safe-3d-wallpaper.png") type("image/png")
+    );
   filter: saturate(1.02) brightness(0.56) contrast(1.08);
   opacity: 0.82;
 }

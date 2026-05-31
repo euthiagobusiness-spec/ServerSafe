@@ -160,15 +160,20 @@ export function PageMotion() {
       );
     };
 
-    document.addEventListener("pointermove", onPointerMove, { passive: true });
-    document.addEventListener("pointerout", onPointerOut, { passive: true });
+    if (canTrackPointer) {
+      document.addEventListener("pointermove", onPointerMove, { passive: true });
+      document.addEventListener("pointerout", onPointerOut, { passive: true });
+    }
+
     document.addEventListener("click", onAnchorClick);
 
     return () => {
       observer.disconnect();
       document.documentElement.classList.remove("motion-ready");
-      document.removeEventListener("pointermove", onPointerMove);
-      document.removeEventListener("pointerout", onPointerOut);
+      if (canTrackPointer) {
+        document.removeEventListener("pointermove", onPointerMove);
+        document.removeEventListener("pointerout", onPointerOut);
+      }
       document.removeEventListener("click", onAnchorClick);
       if (animationFrame) window.cancelAnimationFrame(animationFrame);
     };
