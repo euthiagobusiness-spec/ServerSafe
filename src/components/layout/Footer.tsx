@@ -49,16 +49,22 @@ export function Footer() {
             Contato
           </h2>
           <div className="mt-4 grid gap-3">
-            {contactLinks.map(({ label, href, icon: Icon }) => (
-              <a
-                key={href}
-                href={href}
-                className="inline-flex min-w-0 items-center gap-3 break-all text-sm text-slate-600 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
-              >
-                <Icon className="h-4 w-4 text-blue-700" aria-hidden="true" />
-                {label}
-              </a>
-            ))}
+            {contactLinks.map(({ label, href, icon: Icon }) => {
+              const isExternal = href.startsWith("https://");
+
+              return (
+                <a
+                  key={href}
+                  href={href}
+                  target={isExternal ? "_blank" : undefined}
+                  rel={isExternal ? "noopener noreferrer" : undefined}
+                  className="inline-flex min-w-0 items-center gap-3 break-all text-sm text-slate-600 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
+                >
+                  <Icon className="h-4 w-4 text-blue-700" aria-hidden="true" />
+                  {label}
+                </a>
+              );
+            })}
           </div>
         </div>
 
