@@ -4,7 +4,6 @@ import { links } from "@/config/links";
 import { metrics, site, trustSignals } from "@/config/site";
 import { Button } from "@/components/ui/Button";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { InteractiveGlowCard } from "@/components/ui/InteractiveGlowCard";
 import { SectionBadge } from "@/components/ui/SectionBadge";
 import { TechGrid } from "@/components/ui/TechGrid";
 
@@ -105,9 +104,9 @@ export function Hero() {
           </div>
         </div>
 
-        <InteractiveGlowCard className="relative">
+        <div className="relative">
           <HeroCoreVisual />
-        </InteractiveGlowCard>
+        </div>
       </div>
 
       <div className="mx-auto mt-8 max-w-7xl px-4 sm:mt-10 sm:px-6 lg:px-8">

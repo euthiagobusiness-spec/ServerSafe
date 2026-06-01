@@ -1,42 +1,8 @@
 @import "tailwindcss";
 
-@property --x {
-  syntax: "<percentage>";
-  inherits: true;
-  initial-value: 50%;
-}
-
-@property --y {
-  syntax: "<percentage>";
-  inherits: true;
-  initial-value: 38%;
-}
-
-@property --page-mx {
-  syntax: "<percentage>";
-  inherits: true;
-  initial-value: 50%;
-}
-
-@property --page-my {
-  syntax: "<percentage>";
-  inherits: true;
-  initial-value: 35%;
-}
-
 :root {
   --background: #f5f8fb;
   --foreground: #0f172a;
-  --cursor-x: 50vw;
-  --cursor-y: 35vh;
-  --x: 50%;
-  --y: 38%;
-  --rx: 0deg;
-  --ry: 0deg;
-  --page-mx: 50%;
-  --page-my: 35%;
-  --depth-x: 0;
-  --depth-y: 0;
   --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --surface-ease: cubic-bezier(0.19, 1, 0.22, 1);
 }
@@ -250,27 +216,6 @@ body:has(.dark-site) {
     inset 0 0 28px rgba(125, 211, 252, 0.06);
 }
 
-.dark-site .hover-lift:hover {
-  border-color: rgba(125, 211, 252, 0.34);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 32px 80px rgba(0, 0, 0, 0.42),
-    0 12px 32px rgba(14, 165, 233, 0.16);
-}
-
-.dark-site .interactive-glow-card::before {
-  background: radial-gradient(
-    260px circle at var(--x, 50%) var(--y, 38%),
-    rgba(14, 165, 233, 0.2),
-    rgba(6, 182, 212, 0.08) 34%,
-    transparent 64%
-  );
-}
-
-.dark-site .interactive-glow-card::after {
-  background: linear-gradient(115deg, transparent 8%, rgba(255, 255, 255, 0.16) 18%, transparent 32%);
-}
-
 .dark-site .motion-section::before {
   background:
     radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.16), transparent 58%),
@@ -279,8 +224,8 @@ body:has(.dark-site) {
 
 .dark-site.ambient-stage::before {
   background:
-    radial-gradient(58rem circle at var(--page-mx) var(--page-my), rgba(37, 99, 235, 0.18), transparent 48%),
-    radial-gradient(44rem circle at calc(var(--page-mx) + 14%) calc(var(--page-my) + 18%), rgba(6, 182, 212, 0.14), transparent 54%);
+    radial-gradient(58rem circle at 28% 12%, rgba(37, 99, 235, 0.18), transparent 48%),
+    radial-gradient(44rem circle at 78% 30%, rgba(6, 182, 212, 0.14), transparent 54%);
   opacity: 0.7;
 }
 
@@ -310,51 +255,14 @@ body:has(.dark-site) {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(58rem circle at var(--page-mx) var(--page-my), rgba(37, 99, 235, 0.08), transparent 48%),
-    radial-gradient(44rem circle at calc(var(--page-mx) + 14%) calc(var(--page-my) + 18%), rgba(6, 182, 212, 0.07), transparent 54%);
+    radial-gradient(58rem circle at 28% 12%, rgba(37, 99, 235, 0.08), transparent 48%),
+    radial-gradient(44rem circle at 78% 30%, rgba(6, 182, 212, 0.07), transparent 54%);
   opacity: 0.5;
   mix-blend-mode: soft-light;
-  transition:
-    --page-mx 2800ms cubic-bezier(0.19, 1, 0.22, 1),
-    --page-my 2800ms cubic-bezier(0.19, 1, 0.22, 1),
-    opacity 1600ms ease;
-}
-
-.ambient-orb {
-  position: fixed;
-  z-index: 0;
-  pointer-events: none;
-  border-radius: 999px;
-  transform: translate3d(var(--cursor-x), var(--cursor-y), 0) translate3d(-50%, -50%, 0);
-  transition:
-    transform 2800ms cubic-bezier(0.19, 1, 0.22, 1),
-    opacity 1600ms ease;
-}
-
-.ambient-orb-primary {
-  width: min(40rem, 82vw);
-  height: min(40rem, 82vw);
-  background:
-    radial-gradient(circle, rgba(255, 255, 255, 0.22), transparent 18%),
-    radial-gradient(circle, rgba(37, 99, 235, 0.14), rgba(14, 116, 144, 0.07) 48%, transparent 72%);
-  opacity: 0.2;
-}
-
-.ambient-orb-secondary {
-  width: min(32rem, 74vw);
-  height: min(32rem, 74vw);
-  background:
-    radial-gradient(circle at 58% 42%, rgba(6, 182, 212, 0.11), transparent 24%),
-    radial-gradient(circle, rgba(37, 99, 235, 0.08), rgba(219, 234, 254, 0.11) 42%, transparent 72%);
-  opacity: 0.18;
-  transition-duration: 1.9s, 0.9s;
-  transform: translate3d(calc(var(--cursor-x) + 14vw), calc(var(--cursor-y) + 18vh), 0) translate3d(-50%, -50%, 0);
 }
 
 .motion-section {
   position: relative;
-  transform-style: preserve-3d;
-  perspective: 1400px;
   isolation: isolate;
   opacity: 1;
   transform: translate3d(0, 0, 0);
@@ -364,7 +272,7 @@ body:has(.dark-site) {
 
 .fade-stage {
   opacity: 1;
-  transform: translateZ(0) scale(1);
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 .motion-section::before {
@@ -390,24 +298,20 @@ body:has(.dark-site) {
 
 .motion-ready .fade-stage {
   opacity: 0;
-  transform: translate3d(0, 24px, 0) scale(0.988);
+  transform: translate3d(0, 18px, 0) scale(0.992);
   transition:
-    opacity 820ms cubic-bezier(0.19, 1, 0.22, 1) var(--fade-delay, 0ms),
-    transform 920ms cubic-bezier(0.19, 1, 0.22, 1) var(--fade-delay, 0ms);
+    opacity 520ms cubic-bezier(0.19, 1, 0.22, 1) var(--fade-delay, 0ms),
+    transform 600ms cubic-bezier(0.19, 1, 0.22, 1) var(--fade-delay, 0ms);
 }
 
 .motion-ready .fade-stage.is-visible {
   opacity: 1;
-  transform: perspective(1000px) translate3d(0, 0, 0) scale(1);
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 ::selection {
   background: rgba(37, 99, 235, 0.18);
   color: #0f172a;
-}
-
-.glass-panel {
-  transform-style: preserve-3d;
 }
 
 .glass-panel::before {
@@ -439,133 +343,25 @@ body:has(.dark-site) {
 }
 
 .motion-ready .motion-card {
-  --card-y: 0px;
-  --card-scale: 1;
   opacity: 0;
-  transform: translate3d(0, 22px, 0) scale(0.988);
+  transform: translate3d(0, 16px, 0) scale(0.994);
   backface-visibility: hidden;
   contain: paint;
   transform-origin: center top;
   transition:
-    opacity 760ms var(--surface-ease) var(--reveal-delay, 0ms),
-    transform 880ms var(--surface-ease) var(--reveal-delay, 0ms),
-    border-color 700ms var(--surface-ease),
-    box-shadow 820ms var(--surface-ease);
+    opacity 460ms var(--surface-ease) var(--reveal-delay, 0ms),
+    transform 540ms var(--surface-ease) var(--reveal-delay, 0ms);
 }
 
 .motion-ready .motion-card.is-visible,
 .motion-ready .motion-card[data-visible="true"] {
   opacity: 1;
-  transform:
-    perspective(1000px)
-    translate3d(0, var(--card-y, 0), 0)
-    rotateX(var(--rx, 0deg))
-    rotateY(var(--ry, 0deg))
-    scale(var(--card-scale, 1));
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 .motion-ready .motion-card[data-visible="false"] {
-  opacity: 0.34;
-  transform: translate3d(0, 14px, 0) scale(0.994);
-}
-
-.motion-surface::before {
-  transition:
-    --x 2600ms cubic-bezier(0.19, 1, 0.22, 1),
-    --y 2600ms cubic-bezier(0.19, 1, 0.22, 1),
-    opacity 1.2s var(--surface-ease),
-    background 1.2s var(--surface-ease);
-}
-
-.hover-lift {
-  transition:
-    border-color 520ms ease,
-    transform 760ms cubic-bezier(0.19, 1, 0.22, 1),
-    box-shadow 820ms cubic-bezier(0.19, 1, 0.22, 1),
-    filter 700ms cubic-bezier(0.19, 1, 0.22, 1);
-}
-
-.interactive-glow-card {
-  --x: 50%;
-  --y: 38%;
-  --rx: 0deg;
-  --ry: 0deg;
-  position: relative;
-  transform-style: preserve-3d;
-  transition:
-    --x 2600ms cubic-bezier(0.19, 1, 0.22, 1),
-    --y 2600ms cubic-bezier(0.19, 1, 0.22, 1),
-    transform 760ms cubic-bezier(0.19, 1, 0.22, 1),
-    opacity 520ms ease,
-    box-shadow 820ms cubic-bezier(0.19, 1, 0.22, 1);
-}
-
-.interactive-glow-card:hover {
-  transform:
-    perspective(900px)
-    rotateX(var(--rx))
-    rotateY(var(--ry))
-    translate3d(0, -4px, 18px);
-}
-
-.hover-lift:hover {
-  --card-y: -8px;
-  --card-scale: 1.01;
-  border-color: rgba(37, 99, 235, 0.25);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.86),
-    0 30px 70px rgba(15, 23, 42, 0.16),
-    0 10px 26px rgba(37, 99, 235, 0.09);
-  filter: saturate(1.03);
-}
-
-@keyframes liquid-glow {
-  0%,
-  100% {
-    opacity: 0.42;
-    transform: translate3d(-10%, -7%, 0) scale(0.98);
-  }
-  50% {
-    opacity: 0.82;
-    transform: translate3d(11%, 8%, 0) scale(1.1);
-  }
-}
-
-.interactive-glow-card::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  z-index: 2;
-  pointer-events: none;
-  border-radius: 9px;
-  background: radial-gradient(
-    260px circle at var(--x, 50%) var(--y, 38%),
-    rgba(37, 99, 235, 0.09),
-    rgba(14, 116, 144, 0.05) 34%,
-    transparent 64%
-  );
   opacity: 0;
-  transition:
-    --x 2600ms cubic-bezier(0.19, 1, 0.22, 1),
-    --y 2600ms cubic-bezier(0.19, 1, 0.22, 1),
-    opacity 900ms ease;
-}
-
-.interactive-glow-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  border-radius: 8px;
-  background: linear-gradient(115deg, transparent 8%, rgba(255, 255, 255, 0.36) 18%, transparent 32%);
-  opacity: 0;
-  transition: opacity 900ms ease;
-}
-
-.interactive-glow-card:hover::before,
-.interactive-glow-card:hover::after {
-  opacity: 1;
+  transform: translate3d(0, 12px, 0) scale(0.996);
 }
 
 .mouse-gradient {
@@ -585,7 +381,6 @@ body:has(.dark-site) {
   .motion-section {
     content-visibility: visible;
     contain-intrinsic-size: auto;
-    perspective: none;
   }
 
   .site-background {
@@ -608,7 +403,6 @@ body:has(.dark-site) {
     display: none;
   }
 
-  .ambient-orb,
   .floating-orb {
     display: none;
   }
@@ -642,21 +436,6 @@ body:has(.dark-site) {
     display: none;
   }
 
-  .interactive-glow-card {
-    transform: none !important;
-  }
-
-  .hover-lift:hover {
-    --card-y: 0px;
-    --card-scale: 1;
-    filter: none;
-  }
-
-  .interactive-glow-card::before,
-  .interactive-glow-card::after {
-    display: none;
-  }
-
   .hero-visual {
     animation: none;
   }
@@ -665,10 +444,6 @@ body:has(.dark-site) {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto !important;
-  }
-
-  .ambient-orb {
-    display: none !important;
   }
 
   .ambient-stage::before {
@@ -701,11 +476,5 @@ body:has(.dark-site) {
   .motion-ready .motion-card[data-visible="true"] {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
-  }
-
-  .interactive-glow-card:hover,
-  .hover-lift:hover {
-    transform: translateY(-3px) !important;
-    filter: none !important;
   }
 }
