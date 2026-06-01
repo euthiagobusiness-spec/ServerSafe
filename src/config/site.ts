@@ -1,7 +1,6 @@
 import {
   Activity,
   Ambulance,
-  BadgeCheck,
   BrickWallShield,
   BriefcaseBusiness,
   Building2,
@@ -15,9 +14,7 @@ import {
   GitBranch,
   Headset,
   HeartPulse,
-  KeyRound,
   Layers3,
-  LockKeyhole,
   Mail,
   MonitorCheck,
   Network,
@@ -29,7 +26,6 @@ import {
   Server,
   ShieldCheck,
   Truck,
-  UserCheck,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
@@ -53,17 +49,6 @@ export const metrics = [
   { value: "24/7", label: "visão operacional" },
   { value: "HA", label: "arquitetura redundante" },
   { value: "DR", label: "recuperação planejada" },
-] as const;
-
-export const criticalProblems = [
-  "Servidores instáveis",
-  "Rede lenta",
-  "Backup inseguro",
-  "Risco de indisponibilidade",
-  "Falta de monitoramento",
-  "Ambiente sem documentação",
-  "Ausência de plano de contingência",
-  "Governança e privacidade sem responsável claro",
 ] as const;
 
 export type IconItem = {
@@ -144,45 +129,6 @@ export const solutions: IconItem[] = [
     description:
       "Padronização e automação de rotinas para reduzir retrabalho e aumentar controle.",
     icon: Workflow,
-  },
-];
-
-export const governanceItems: IconItem[] = [
-  {
-    title: "Criptografia aplicada",
-    description:
-      "Orientação para proteger dados em trânsito e em repouso, com gestão de chaves e escopo definido.",
-    icon: KeyRound,
-  },
-  {
-    title: "Segurança da informação",
-    description:
-      "Políticas, controles técnicos e arquitetura para reduzir exposição sem promessas absolutas.",
-    icon: LockKeyhole,
-  },
-  {
-    title: "LGPD na operação",
-    description:
-      "Mapeamento de dados, bases legais, retenção, acesso e rotinas alinhadas à realidade da empresa.",
-    icon: FileLock,
-  },
-  {
-    title: "DPO e orientação executiva",
-    description:
-      "Apoio consultivo em proteção de dados, com comunicação técnica clara para decisores.",
-    icon: UserCheck,
-  },
-  {
-    title: "Controle e rastreabilidade",
-    description:
-      "Princípio do menor privilégio, revisão de acessos e evidências para reduzir dependência de informalidade.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "ISO 27001 e ISO 27701",
-    description:
-      "Referências de boas práticas para segurança, privacidade e maturidade operacional.",
-    icon: BadgeCheck,
   },
 ];
 

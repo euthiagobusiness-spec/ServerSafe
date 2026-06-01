@@ -2,11 +2,10 @@ import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { AboutNeto } from "@/components/sections/AboutNeto";
 import { Continuity } from "@/components/sections/Continuity";
-import { CriticalProblems } from "@/components/sections/CriticalProblems";
 import { FinalCTA } from "@/components/sections/FinalCTA";
-import { Governance } from "@/components/sections/Governance";
 import { Hero } from "@/components/sections/Hero";
 import { Industries } from "@/components/sections/Industries";
+import { PreServiceQuestionnaire } from "@/components/sections/PreServiceQuestionnaire";
 import { Process } from "@/components/sections/Process";
 import { Solutions } from "@/components/sections/Solutions";
 import { PageMotion } from "@/components/ui/PageMotion";
@@ -25,9 +24,6 @@ export default function Home() {
           <div className="wallpaper-fade" aria-hidden="true" />
           <div className="relative z-10">
             <div className="motion-section fade-stage">
-              <CriticalProblems />
-            </div>
-            <div className="motion-section fade-stage">
               <Solutions />
             </div>
             <div className="motion-section fade-stage">
@@ -40,7 +36,7 @@ export default function Home() {
               <AboutNeto />
             </div>
             <div className="motion-section fade-stage">
-              <Governance />
+              <PreServiceQuestionnaire />
             </div>
             <div className="motion-section fade-stage">
               <Process />

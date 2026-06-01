@@ -4,7 +4,6 @@ export const links = {
   continuity: "#continuidade",
   industries: "#setores",
   about: "#sobre",
-  governance: "#governanca",
   process: "#processo",
   privacy: "#privacidade",
   terms: "#termos",
@@ -13,7 +12,7 @@ export const links = {
 export const navigationLinks = [
   { label: "Soluções", href: links.solutions },
   { label: "Continuidade", href: links.continuity },
-  { label: "Governança", href: links.governance },
+  { label: "Pré-atendimento", href: links.diagnostics },
   { label: "Setores", href: links.industries },
   { label: "Processo", href: links.process },
 ] as const;

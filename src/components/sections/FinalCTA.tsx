@@ -9,7 +9,7 @@ import { SectionIntro } from "@/components/ui/SectionIntro";
 
 export function FinalCTA() {
   return (
-    <section id="diagnostico" className="relative overflow-hidden bg-white/34 px-4 py-14 sm:px-6 sm:py-28 lg:px-8">
+    <section id="contato" className="relative overflow-hidden bg-white/34 px-4 py-14 sm:px-6 sm:py-28 lg:px-8">
       <FloatingOrb className="left-1/2 top-0 h-80 w-[620px] -translate-x-1/2" intensity="medium" />
       <div className="relative mx-auto max-w-5xl">
         <GlassCard className="px-4 py-8 text-center sm:px-10 sm:py-14">
