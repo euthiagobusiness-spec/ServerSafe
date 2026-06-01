@@ -1,7 +1,6 @@
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight, Mail, ShieldCheck } from "lucide-react";
 
-import { links } from "@/config/links";
-import { contactLinks } from "@/config/site";
+import { site } from "@/config/site";
 import { Button } from "@/components/ui/Button";
 import { FloatingOrb } from "@/components/ui/FloatingOrb";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -29,30 +28,19 @@ export function FinalCTA() {
             }
           />
           <div className="mt-6 flex justify-center sm:mt-8">
-            <Button href={links.diagnostics}>
+            <Button href={site.contact.phoneHref} target="_blank">
               Solicitar diagnóstico
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" aria-hidden="true" />
             </Button>
           </div>
 
-          <div className="mx-auto mt-7 grid max-w-2xl gap-3 sm:grid-cols-2">
-            {contactLinks.map(({ label, href, icon: Icon }) => {
-              const isExternal = href.startsWith("https://");
-
-              return (
-                <a
-                  key={href}
-                  href={href}
-                  target={isExternal ? "_blank" : undefined}
-                  rel={isExternal ? "noopener noreferrer" : undefined}
-                  className="inline-flex min-h-12 items-center justify-center gap-3 rounded-[8px] border border-white/70 bg-white/58 px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/70 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
-                >
-                  <Icon className="h-4 w-4 text-blue-700" aria-hidden="true" />
-                  {label}
-                </a>
-              );
-            })}
-          </div>
+          <a
+            href={site.contact.emailHref}
+            className="mx-auto mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-[8px] px-3 py-2 text-sm font-semibold text-slate-400 transition hover:text-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-400"
+          >
+            <Mail className="h-4 w-4 text-cyan-300/80" aria-hidden="true" />
+            {site.contact.email}
+          </a>
         </GlassCard>
       </div>
     </section>
