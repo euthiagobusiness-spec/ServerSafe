@@ -43,6 +43,7 @@ export const site = {
     email: contact.email,
     phone: contact.phone,
     phoneHref: contact.whatsappHref,
+    supportHref: contact.whatsappSupportHref,
     emailHref: contact.emailHref,
   },
 } as const;

@@ -35,7 +35,7 @@ export function FinalCTA() {
             />
 
             <div className="mt-6 flex justify-center sm:mt-8 lg:justify-start">
-              <Button href={site.contact.phoneHref} target="_blank">
+              <Button href={site.contact.supportHref} target="_blank">
                 Solicitar diagnostico
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" aria-hidden="true" />
               </Button>
@@ -52,7 +52,7 @@ export function FinalCTA() {
 
           <div className="mx-auto w-full max-w-[240px] lg:ml-auto">
             <a
-              href={site.contact.phoneHref}
+              href={site.contact.supportHref}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Abrir WhatsApp da ServerSafe pelo QR Code"

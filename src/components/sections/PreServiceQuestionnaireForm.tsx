@@ -15,12 +15,8 @@ import {
   urgencyOptions,
 } from "@/config/preService";
 import { GlassCard } from "@/components/ui/GlassCard";
-import {
-  buildBypassMessage,
-  buildPreServiceMessage,
-  buildWhatsAppUrl,
-  isQuestionnaireBypassed,
-} from "@/lib/preServiceWhatsApp";
+import { contact } from "@/config/contact";
+import { buildPreServiceMessage, buildWhatsAppUrl, isQuestionnaireBypassed } from "@/lib/preServiceWhatsApp";
 
 const selectClass =
   "min-h-12 w-full rounded-[8px] border border-white/60 bg-white/38 px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-blue-300 focus-visible:ring-2 focus-visible:ring-blue-500/40";
@@ -237,8 +233,7 @@ export function PreServiceQuestionnaireForm({
 
     if (!bypassed && !form.reportValidity()) return;
 
-    const message = bypassed ? buildBypassMessage() : buildPreServiceMessage(formData);
-    const whatsappUrl = buildWhatsAppUrl(message);
+    const whatsappUrl = bypassed ? contact.whatsappSupportHref : buildWhatsAppUrl(buildPreServiceMessage(formData));
     const externalLink = document.createElement("a");
 
     externalLink.href = whatsappUrl;
