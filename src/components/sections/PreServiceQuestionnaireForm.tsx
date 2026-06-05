@@ -1,7 +1,6 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 
 import {
@@ -44,7 +43,12 @@ function SubmitButton({ centered = false }: { centered?: boolean }) {
   );
 }
 
-function QuestionnaireFields({ onBypassChange }: { onBypassChange: (checked: boolean) => void }) {
+type PreServiceQuestionnaireFormProps = {
+  bypassQuestionnaire: boolean;
+  onBypassChange: (checked: boolean) => void;
+};
+
+function QuestionnaireFields({ onBypassChange }: Pick<PreServiceQuestionnaireFormProps, "onBypassChange">) {
   return (
     <>
       <div>
@@ -208,9 +212,10 @@ function QuestionnaireFields({ onBypassChange }: { onBypassChange: (checked: boo
   );
 }
 
-export function PreServiceQuestionnaireForm() {
-  const [bypassQuestionnaire, setBypassQuestionnaire] = useState(false);
-
+export function PreServiceQuestionnaireForm({
+  bypassQuestionnaire,
+  onBypassChange,
+}: PreServiceQuestionnaireFormProps) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -229,8 +234,8 @@ export function PreServiceQuestionnaireForm() {
   }
 
   return (
-    <GlassCard className="p-4 sm:p-6">
-      <form onSubmit={handleSubmit} noValidate className={bypassQuestionnaire ? "grid place-items-center py-8" : "grid gap-5"}>
+    <GlassCard className={bypassQuestionnaire ? "mx-auto w-full max-w-xl p-4 sm:p-6" : "p-4 sm:p-6"}>
+      <form onSubmit={handleSubmit} noValidate className={bypassQuestionnaire ? "grid place-items-center py-4 sm:py-6" : "grid gap-5"}>
         {bypassQuestionnaire ? (
           <>
             <input type="hidden" name={bypassQuestionnaireName} value="on" />
@@ -238,7 +243,7 @@ export function PreServiceQuestionnaireForm() {
           </>
         ) : (
           <>
-            <QuestionnaireFields onBypassChange={setBypassQuestionnaire} />
+            <QuestionnaireFields onBypassChange={onBypassChange} />
             <SubmitButton />
           </>
         )}
