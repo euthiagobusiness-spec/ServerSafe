@@ -3,26 +3,24 @@
 import type { FormEvent } from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 
-import { contact } from "@/config/contact";
+import {
+  areaOptions,
+  backupOptions,
+  bypassQuestionnaireName,
+  documentationOptions,
+  environmentSizeOptions,
+  impactOptions,
+  monitoringOptions,
+  timelineOptions,
+  urgencyOptions,
+} from "@/config/preService";
 import { GlassCard } from "@/components/ui/GlassCard";
-
-const areaOptions = [
-  "Cloud computing",
-  "Servidores",
-  "Firewall e seguranca",
-  "Backup e recuperacao",
-  "Failover de links",
-  "Monitoramento",
-  "Rede corporativa",
-  "LGPD e privacidade",
-] as const;
-
-const urgencyOptions = [
-  "Operacao parada agora",
-  "Instabilidade recorrente",
-  "Risco alto identificado",
-  "Melhoria planejada",
-] as const;
+import {
+  buildBypassMessage,
+  buildPreServiceMessage,
+  buildWhatsAppUrl,
+  isQuestionnaireBypassed,
+} from "@/lib/preServiceWhatsApp";
 
 const selectClass =
   "min-h-12 w-full rounded-[8px] border border-white/60 bg-white/38 px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-blue-300 focus-visible:ring-2 focus-visible:ring-blue-500/40";
@@ -33,56 +31,17 @@ const inputClass =
 const textAreaClass =
   "min-h-28 w-full resize-y rounded-[8px] border border-white/60 bg-white/38 px-3 py-3 text-sm font-semibold leading-6 text-slate-900 placeholder:text-slate-500 outline-none transition focus:border-blue-300 focus-visible:ring-2 focus-visible:ring-blue-500/40";
 
-function field(formData: FormData, name: string) {
-  return String(formData.get(name) ?? "").trim();
-}
-
-function selectedAreas(formData: FormData) {
-  return formData.getAll("areas").map(String).filter(Boolean);
-}
-
-function buildMessage(formData: FormData) {
-  const areas = selectedAreas(formData);
-
-  return [
-    "*Pre-atendimento ServerSafe*",
-    "",
-    `Nome: ${field(formData, "name")}`,
-    `Empresa: ${field(formData, "company")}`,
-    `Contato: ${field(formData, "contact")}`,
-    `E-mail: ${field(formData, "email") || "Nao informado"}`,
-    "",
-    `Urgencia: ${field(formData, "urgency") || "Nao informada"}`,
-    `Areas envolvidas: ${areas.length ? areas.join(", ") : "Nao informado"}`,
-    `Impacto atual: ${field(formData, "impact") || "Nao informado"}`,
-    `Tamanho do ambiente: ${field(formData, "environmentSize") || "Nao informado"}`,
-    "",
-    `Backup: ${field(formData, "backup") || "Nao informado"}`,
-    `Monitoramento: ${field(formData, "monitoring") || "Nao informado"}`,
-    `Documentacao: ${field(formData, "documentation") || "Nao informado"}`,
-    `Prazo esperado: ${field(formData, "timeline") || "Nao informado"}`,
-    "",
-    "Resumo tecnico:",
-    field(formData, "summary"),
-    "",
-    "Observacao: nao foram enviados dados sensiveis neste pre-atendimento.",
-  ].join("\n");
-}
-
-function buildWhatsAppUrl(message: string) {
-  const url = new URL(contact.whatsappHref);
-  url.searchParams.set("text", message);
-  return url.toString();
-}
-
 export function PreServiceQuestionnaireForm() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const form = event.currentTarget;
-    if (!form.reportValidity()) return;
+    const formData = new FormData(form);
+    const bypassed = isQuestionnaireBypassed(formData);
 
-    const message = buildMessage(new FormData(form));
+    if (!bypassed && !form.reportValidity()) return;
+
+    const message = bypassed ? buildBypassMessage() : buildPreServiceMessage(formData);
     const opened = window.open(buildWhatsAppUrl(message), "_blank", "noopener,noreferrer");
 
     if (!opened) {
@@ -92,7 +51,7 @@ export function PreServiceQuestionnaireForm() {
 
   return (
     <GlassCard className="p-4 sm:p-6">
-      <form onSubmit={handleSubmit} className="grid gap-5">
+      <form onSubmit={handleSubmit} noValidate className="grid gap-5">
         <div>
           <h3 className="text-xl font-black text-slate-950 sm:text-2xl">Questionario de pre-atendimento</h3>
           <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -100,18 +59,47 @@ export function PreServiceQuestionnaireForm() {
           </p>
         </div>
 
+        <label className="flex items-start gap-3 rounded-[8px] border border-cyan-200/30 bg-cyan-50/10 p-3 text-sm font-semibold leading-6 text-slate-600">
+          <input
+            type="checkbox"
+            name={bypassQuestionnaireName}
+            className="mt-1 h-4 w-4 shrink-0 accent-blue-600"
+          />
+          <span>
+            Clique aqui para enviar uma solicitação de diagnóstico sem preencher o questionário.
+          </span>
+        </label>
+
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-2 text-sm font-bold text-slate-800">
             Nome
-            <input name="name" required autoComplete="name" placeholder="Seu nome" className={inputClass} />
+            <input
+              name="name"
+              required
+              autoComplete="name"
+              placeholder="Seu nome"
+              className={inputClass}
+            />
           </label>
           <label className="grid gap-2 text-sm font-bold text-slate-800">
             Empresa
-            <input name="company" required autoComplete="organization" placeholder="Nome da empresa" className={inputClass} />
+            <input
+              name="company"
+              required
+              autoComplete="organization"
+              placeholder="Nome da empresa"
+              className={inputClass}
+            />
           </label>
           <label className="grid gap-2 text-sm font-bold text-slate-800">
             WhatsApp ou telefone
-            <input name="contact" required autoComplete="tel" placeholder="Contato para retorno" className={inputClass} />
+            <input
+              name="contact"
+              required
+              autoComplete="tel"
+              placeholder="Contato para retorno"
+              className={inputClass}
+            />
           </label>
           <label className="grid gap-2 text-sm font-bold text-slate-800">
             E-mail
@@ -127,7 +115,13 @@ export function PreServiceQuestionnaireForm() {
                 key={option}
                 className="flex min-h-11 items-center gap-3 rounded-[8px] border border-white/60 bg-white/38 px-3 text-sm font-semibold text-slate-700"
               >
-                <input required type="radio" name="urgency" value={option} className="h-4 w-4 accent-blue-600" />
+                <input
+                  required
+                  type="radio"
+                  name="urgency"
+                  value={option}
+                  className="h-4 w-4 accent-blue-600"
+                />
                 {option}
               </label>
             ))}
@@ -156,10 +150,9 @@ export function PreServiceQuestionnaireForm() {
               <option value="" disabled>
                 Selecione
               </option>
-              <option>Sem parada, mas com risco</option>
-              <option>Lentidao ou instabilidade</option>
-              <option>Servico critico indisponivel</option>
-              <option>Auditoria, LGPD ou governanca</option>
+              {impactOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
             </select>
           </label>
           <label className="grid gap-2 text-sm font-bold text-slate-800">
@@ -168,10 +161,9 @@ export function PreServiceQuestionnaireForm() {
               <option value="" disabled>
                 Selecione
               </option>
-              <option>Ate 20 usuarios</option>
-              <option>21 a 80 usuarios</option>
-              <option>81 a 200 usuarios</option>
-              <option>Mais de 200 usuarios</option>
+              {environmentSizeOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
             </select>
           </label>
           <label className="grid gap-2 text-sm font-bold text-slate-800">
@@ -180,10 +172,9 @@ export function PreServiceQuestionnaireForm() {
               <option value="" disabled>
                 Selecione
               </option>
-              <option>Existe e e testado</option>
-              <option>Existe, mas nao e testado</option>
-              <option>Nao existe rotina clara</option>
-              <option>Nao sei informar</option>
+              {backupOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
             </select>
           </label>
           <label className="grid gap-2 text-sm font-bold text-slate-800">
@@ -192,10 +183,9 @@ export function PreServiceQuestionnaireForm() {
               <option value="" disabled>
                 Selecione
               </option>
-              <option>Ativo com alertas</option>
-              <option>Parcial</option>
-              <option>Nao existe</option>
-              <option>Nao sei informar</option>
+              {monitoringOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
             </select>
           </label>
           <label className="grid gap-2 text-sm font-bold text-slate-800">
@@ -204,10 +194,9 @@ export function PreServiceQuestionnaireForm() {
               <option value="" disabled>
                 Selecione
               </option>
-              <option>Atualizada</option>
-              <option>Parcial ou antiga</option>
-              <option>Inexistente</option>
-              <option>Nao sei informar</option>
+              {documentationOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
             </select>
           </label>
           <label className="grid gap-2 text-sm font-bold text-slate-800">
@@ -216,10 +205,9 @@ export function PreServiceQuestionnaireForm() {
               <option value="" disabled>
                 Selecione
               </option>
-              <option>Hoje</option>
-              <option>Esta semana</option>
-              <option>Proximos 30 dias</option>
-              <option>Projeto planejado</option>
+              {timelineOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
             </select>
           </label>
         </div>
