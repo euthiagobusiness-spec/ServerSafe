@@ -43,6 +43,18 @@ function SubmitButton({ centered = false }: { centered?: boolean }) {
   );
 }
 
+function RestoreQuestionnaireButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-3 inline-flex min-h-10 items-center justify-center rounded-[8px] border border-cyan-200/20 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-cyan-100/80 transition duration-300 hover:border-cyan-200/40 hover:bg-cyan-100/10 hover:text-cyan-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-300"
+    >
+      Preencher questionario
+    </button>
+  );
+}
+
 type PreServiceQuestionnaireFormProps = {
   bypassQuestionnaire: boolean;
   onBypassChange: (checked: boolean) => void;
@@ -240,6 +252,7 @@ export function PreServiceQuestionnaireForm({
           <>
             <input type="hidden" name={bypassQuestionnaireName} value="on" />
             <SubmitButton centered />
+            <RestoreQuestionnaireButton onClick={() => onBypassChange(false)} />
           </>
         ) : (
           <>
