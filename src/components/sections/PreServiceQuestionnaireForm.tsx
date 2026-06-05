@@ -238,11 +238,15 @@ export function PreServiceQuestionnaireForm({
     if (!bypassed && !form.reportValidity()) return;
 
     const message = bypassed ? buildBypassMessage() : buildPreServiceMessage(formData);
-    const opened = window.open(buildWhatsAppUrl(message), "_blank", "noopener,noreferrer");
+    const whatsappUrl = buildWhatsAppUrl(message);
+    const externalLink = document.createElement("a");
 
-    if (!opened) {
-      window.location.href = buildWhatsAppUrl(message);
-    }
+    externalLink.href = whatsappUrl;
+    externalLink.target = "_blank";
+    externalLink.rel = "noopener noreferrer";
+    document.body.append(externalLink);
+    externalLink.click();
+    externalLink.remove();
   }
 
   return (
