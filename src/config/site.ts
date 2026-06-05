@@ -30,6 +30,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { contact } from "@/config/contact";
+
 export const site = {
   name: "ServerSafe",
   slogan: "Infraestrutura em nuvem e segurança para empresas que não podem parar.",
@@ -38,10 +40,10 @@ export const site = {
   diagnosticCta: "Solicitar diagnóstico",
   solutionsCta: "Conhecer soluções",
   contact: {
-    email: "neto@serversafe.com.br",
-    phone: "+55 31 99310-2035",
-    phoneHref: "https://wa.me/message/IKPYYJSFDPF6J1",
-    emailHref: "mailto:neto@serversafe.com.br",
+    email: contact.email,
+    phone: contact.phone,
+    phoneHref: contact.whatsappHref,
+    emailHref: contact.emailHref,
   },
 } as const;
 

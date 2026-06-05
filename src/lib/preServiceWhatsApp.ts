@@ -52,7 +52,7 @@ export function buildBypassMessage() {
 }
 
 export function buildWhatsAppUrl(message: string) {
-  const url = new URL(contact.whatsappHref);
+  const url = new URL(`https://wa.me/${contact.whatsappPhone}`);
   url.searchParams.set("text", message);
   return url.toString();
 }
