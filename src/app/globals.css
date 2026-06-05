@@ -20,7 +20,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 88px;
+  scroll-padding-top: 96px;
 }
 
 body {
@@ -33,6 +33,74 @@ body {
 body:has(.dark-site) {
   background: #050b14;
   color: #eaf4ff;
+}
+
+.site-header {
+  opacity: 1;
+  transform: translateZ(0);
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    background-color 220ms ease;
+}
+
+.site-header-inner {
+  min-height: 72px;
+  transition:
+    min-height 220ms ease,
+    padding 220ms ease;
+}
+
+.site-header-logo {
+  transition:
+    height 220ms ease,
+    filter 220ms ease;
+}
+
+.site-header-cta {
+  transition:
+    min-height 220ms ease,
+    padding 220ms ease,
+    font-size 220ms ease,
+    box-shadow 220ms ease,
+    background-color 220ms ease,
+    border-color 220ms ease,
+    color 220ms ease;
+}
+
+.site-header-spacer {
+  height: 73px;
+}
+
+.header-compact .site-header-inner {
+  min-height: 58px;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.header-compact .site-header-logo {
+  height: 2rem;
+}
+
+.header-compact .site-header-cta {
+  min-height: 2.25rem;
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+  font-size: 0.68rem;
+}
+
+@media (min-width: 640px) {
+  .site-header-spacer {
+    height: 81px;
+  }
+
+  .header-compact .site-header-inner {
+    min-height: 62px;
+  }
+
+  .header-compact .site-header-logo {
+    height: 2.25rem;
+  }
 }
 
 .site-background {
@@ -375,7 +443,25 @@ body:has(.dark-site) {
 @media (max-width: 767px), (hover: none), (pointer: coarse) {
   html {
     scroll-behavior: auto;
-    scroll-padding-top: 76px;
+    scroll-padding-top: 86px;
+  }
+
+  .site-header-inner {
+    min-height: 64px;
+  }
+
+  .site-header-spacer {
+    height: 65px;
+  }
+
+  .header-compact .site-header-inner {
+    min-height: 56px;
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+  }
+
+  .header-compact .site-header-logo {
+    height: 1.9rem;
   }
 
   .motion-section {
@@ -444,6 +530,13 @@ body:has(.dark-site) {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto !important;
+  }
+
+  .site-header,
+  .site-header-inner,
+  .site-header-logo,
+  .site-header-cta {
+    transition: none !important;
   }
 
   .ambient-stage::before {

@@ -7,8 +7,30 @@ const revealSelector = ".fade-stage, .reveal-surface";
 export function PageMotion() {
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let headerFrame = 0;
+    let lastHeaderScrollY = window.scrollY;
 
     document.documentElement.classList.add("motion-ready");
+
+    const updateHeaderState = () => {
+      headerFrame = 0;
+      lastHeaderScrollY = window.scrollY;
+      document.documentElement.classList.toggle("header-compact", window.scrollY > 24);
+    };
+
+    const onScroll = () => {
+      if (headerFrame) {
+        return;
+      }
+
+      headerFrame = window.requestAnimationFrame(updateHeaderState);
+    };
+
+    const headerFallback = window.setInterval(() => {
+      if (window.scrollY !== lastHeaderScrollY) {
+        onScroll();
+      }
+    }, 120);
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -55,11 +77,20 @@ export function PageMotion() {
     };
 
     document.addEventListener("click", onAnchorClick);
+    updateHeaderState();
+    window.addEventListener("scroll", onScroll, { passive: true });
 
     return () => {
+      if (headerFrame) {
+        window.cancelAnimationFrame(headerFrame);
+      }
+
       observer.disconnect();
+      window.clearInterval(headerFallback);
       document.documentElement.classList.remove("motion-ready");
+      document.documentElement.classList.remove("header-compact");
       document.removeEventListener("click", onAnchorClick);
+      window.removeEventListener("scroll", onScroll);
     };
   }, []);
 
