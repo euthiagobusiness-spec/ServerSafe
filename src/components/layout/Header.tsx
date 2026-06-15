@@ -37,7 +37,8 @@ export function Header() {
           </nav>
 
           <Button
-            href="#diagnostico"
+            href={site.contact.supportHref}
+            target="_blank"
             variant="tech"
             className="site-header-cta min-h-9 px-3 py-2 text-[0.65rem] sm:min-h-10 sm:px-4 sm:text-xs"
           >

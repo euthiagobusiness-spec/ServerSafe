@@ -16,8 +16,8 @@ export function Footer() {
             className="h-auto w-56"
           />
           <p className="mt-4 max-w-md text-sm leading-6 text-slate-600 sm:mt-5 sm:leading-7">
-            Infraestrutura segura para empresas que dependem de tecnologia todos os dias.
-            Ambientes protegidos, monitorados e preparados para crescer com controle.
+            Infraestrutura em nuvem, seguranca, backup, monitoramento e suporte para
+            rotinas corporativas que dependem de estabilidade.
           </p>
         </div>
 
@@ -39,7 +39,7 @@ export function Footer() {
               className="text-sm text-slate-600 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
               href={links.about}
             >
-              Sobre Neto
+              Sobre ServerSafe
             </a>
           </div>
         </div>
@@ -70,7 +70,7 @@ export function Footer() {
 
         <div id="seguranca-confidencialidade" className="col-span-2 lg:col-span-1">
           <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-slate-900">
-            Segurança e confidencialidade
+            Seguranca e confidencialidade
           </h2>
           <div className="mt-4 grid gap-3 text-sm text-slate-600">
             <a
@@ -78,7 +78,7 @@ export function Footer() {
               href={links.privacy}
               className="transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
             >
-              Política de Privacidade
+              Politica de Privacidade
             </a>
             <a
               id="termos"
@@ -88,8 +88,8 @@ export function Footer() {
               Termos de Uso
             </a>
             <p>
-              Nenhum dado sensível deve ser enviado por canais não combinados. Diagnósticos
-              técnicos são tratados com confidencialidade operacional.
+              Nenhum dado sensivel deve ser enviado por canais nao combinados. Atendimentos
+              tecnicos sao tratados com confidencialidade operacional.
             </p>
           </div>
         </div>

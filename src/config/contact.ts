@@ -1,9 +1,6 @@
 export const contact = {
-  email: "neto@serversafe.com.br",
-  phone: "+55 31 99310-2035",
-  whatsappPhone: "5531993102035",
-  whatsappHref: "https://wa.me/5531993102035",
+  email: "contato@serversafe.com.br",
+  phone: "+55 13 2391-6007",
   whatsappSupportHref: "https://wa.me/message/IKPYYJSFDPF6J1",
-  whatsappBusinessShortHref: "https://wa.me/message/IKPYYJSFDPF6J1",
-  emailHref: "mailto:neto@serversafe.com.br",
+  emailHref: "mailto:contato@serversafe.com.br",
 } as const;

@@ -1,29 +1,16 @@
 import {
-  Activity,
-  Ambulance,
-  BrickWallShield,
   BriefcaseBusiness,
   Building2,
-  ChartBar,
   Cloud,
   DatabaseBackup,
   FileCheck2,
-  FileLock,
-  Gauge,
   Gavel,
-  GitBranch,
   Headset,
-  HeartPulse,
-  Layers3,
   Mail,
   MonitorCheck,
-  Network,
   Phone,
-  RotateCcw,
   Route,
-  Scale,
   ScanSearch,
-  Server,
   ShieldCheck,
   Truck,
   Workflow,
@@ -34,25 +21,19 @@ import { contact } from "@/config/contact";
 
 export const site = {
   name: "ServerSafe",
-  slogan: "Infraestrutura em nuvem e segurança para empresas que não podem parar.",
+  slogan: "Infraestrutura em nuvem e seguranca para operacoes corporativas.",
   description:
-    "Cloud computing, servidores e continuidade operacional para negócios que dependem de estabilidade, proteção e alta disponibilidade.",
-  diagnosticCta: "Solicitar diagnóstico",
-  solutionsCta: "Conhecer soluções",
+    "Cloud computing, seguranca, backup, monitoramento e suporte tecnico para empresas que precisam de estabilidade e continuidade.",
+  diagnosticCta: "Solicitar atendimento",
+  solutionsCta: "Conhecer servicos",
   contact: {
     email: contact.email,
     phone: contact.phone,
-    phoneHref: contact.whatsappHref,
+    phoneHref: contact.whatsappSupportHref,
     supportHref: contact.whatsappSupportHref,
     emailHref: contact.emailHref,
   },
 } as const;
-
-export const metrics = [
-  { value: "24/7", label: "visão operacional" },
-  { value: "HA", label: "arquitetura redundante" },
-  { value: "DR", label: "recuperação planejada" },
-] as const;
 
 export type IconItem = {
   title: string;
@@ -60,130 +41,116 @@ export type IconItem = {
   icon: LucideIcon;
 };
 
-export const solutions: IconItem[] = [
+export const services: IconItem[] = [
   {
     title: "Cloud Computing",
     description:
-      "Ambientes em nuvem desenhados para estabilidade, elasticidade e governança técnica.",
+      "Ambientes em nuvem estruturados para estabilidade, controle de acesso e evolucao segura.",
     icon: Cloud,
   },
   {
-    title: "Servidores",
+    title: "Firewall e Seguranca",
     description:
-      "Arquitetura, manutenção e organização de servidores para workloads corporativos.",
-    icon: Server,
+      "Politicas de protecao, perimetro, acesso e reducao de exposicao para ambientes corporativos.",
+    icon: ShieldCheck,
   },
   {
-    title: "Firewall e Segurança",
+    title: "Backup e Recuperacao",
     description:
-      "Camadas de proteção, políticas de acesso e perímetro alinhados ao risco do negócio.",
-    icon: BrickWallShield,
-  },
-  {
-    title: "Backup e Recuperação",
-    description:
-      "Rotinas verificáveis de backup, recuperação e continuidade para reduzir exposição.",
-    icon: RotateCcw,
-  },
-  {
-    title: "Failover de Links",
-    description:
-      "Redundância de conectividade para preservar operações quando o link principal falha.",
-    icon: GitBranch,
+      "Rotinas verificaveis de backup, recuperacao e continuidade para reduzir risco operacional.",
+    icon: DatabaseBackup,
   },
   {
     title: "Monitoramento",
     description:
-      "Observabilidade de servidores, rede e eventos críticos com resposta orientada por dados.",
+      "Acompanhamento de disponibilidade, eventos criticos e alertas para antecipar incidentes.",
     icon: MonitorCheck,
-  },
-  {
-    title: "Redes Corporativas",
-    description:
-      "Topologias, segmentação e desempenho para ambientes que precisam escalar com controle.",
-    icon: Network,
   },
   {
     title: "Suporte e Outsourcing de TI",
     description:
-      "Operação técnica consultiva para empresas que precisam de proximidade e previsibilidade.",
+      "Atendimento tecnico consultivo para empresas que precisam de previsibilidade e resposta organizada.",
     icon: Headset,
   },
   {
-    title: "Consultoria Estratégica em TI",
+    title: "Automacao de Processos",
     description:
-      "Diagnóstico, priorização e plano de evolução para alinhar tecnologia, risco e operação.",
-    icon: BriefcaseBusiness,
-  },
-  {
-    title: "Governança e Privacidade",
-    description:
-      "Apoio em segurança da informação, privacidade, LGPD, classificação de dados e controles de acesso.",
-    icon: FileLock,
-  },
-  {
-    title: "BI e Indicadores",
-    description:
-      "Visão de dados para acompanhar disponibilidade, risco, atendimento e desempenho operacional.",
-    icon: ChartBar,
-  },
-  {
-    title: "Automação de Processos",
-    description:
-      "Padronização e automação de rotinas para reduzir retrabalho e aumentar controle.",
+      "Padronizacao de rotinas operacionais para reduzir retrabalho e melhorar o controle interno.",
     icon: Workflow,
   },
 ];
 
+export const solutions = services;
+
 export const industries = [
-  { title: "Jurídico", description: "Disponibilidade para prazos, documentos e operações sensíveis.", icon: Gavel },
-  { title: "Saúde", description: "Base técnica estável para rotinas clínicas e administrativas.", icon: HeartPulse },
-  { title: "Transporte", description: "Conectividade, dados e suporte para operações distribuídas.", icon: Truck },
-  { title: "Institucional", description: "Infraestrutura organizada para governança e continuidade.", icon: Building2 },
-  { title: "Operações críticas", description: "Ambientes preparados para redução de risco operacional.", icon: Activity },
-  { title: "Escritórios corporativos", description: "Rede, segurança e servidores para produtividade diária.", icon: FileCheck2 },
+  {
+    title: "Juridico",
+    description: "Infraestrutura para escritorios e equipes que dependem de disponibilidade e sigilo.",
+    icon: Gavel,
+  },
+  {
+    title: "Corporativo",
+    description: "Base tecnica para empresas com operacao administrativa, arquivos e comunicacao diaria.",
+    icon: Building2,
+  },
+  {
+    title: "Transporte",
+    description: "Conectividade, suporte e continuidade para operacoes distribuidas e rotinas logisticas.",
+    icon: Truck,
+  },
 ] satisfies IconItem[];
 
 export const processSteps = [
   {
-    title: "Diagnóstico",
-    description: "Leitura técnica do ambiente, prioridades e dependências de operação.",
+    title: "Entendimento",
+    description: "Leitura objetiva do ambiente, prioridades e riscos que impactam a operacao.",
     icon: ScanSearch,
   },
   {
-    title: "Mapeamento de riscos",
-    description: "Identificação de pontos de falha, exposições e fragilidades de continuidade.",
-    icon: ShieldCheck,
+    title: "Plano tecnico",
+    description: "Definicao de escopo, ordem de execucao e criterios claros para evolucao.",
+    icon: FileCheck2,
   },
   {
-    title: "Arquitetura da solução",
-    description: "Desenho de cloud, servidores, rede, segurança e contingência.",
-    icon: Layers3,
-  },
-  {
-    title: "Implementação",
-    description: "Execução organizada, validação técnica e documentação do ambiente.",
+    title: "Implementacao",
+    description: "Execucao organizada, comunicacao direta e controle das etapas de mudanca.",
     icon: Route,
   },
   {
-    title: "Monitoramento e suporte",
-    description: "Acompanhamento contínuo, resposta técnica e evolução controlada.",
-    icon: Gauge,
+    title: "Acompanhamento",
+    description: "Monitoramento, suporte e ajustes para manter o ambiente estavel no dia a dia.",
+    icon: MonitorCheck,
   },
 ] satisfies IconItem[];
 
 export const trustSignals = [
   { label: "Cloud", icon: Cloud },
-  { label: "Segurança", icon: ShieldCheck },
-  { label: "Servidores", icon: Server },
-  { label: "Rede", icon: Network },
-  { label: "Continuidade", icon: Scale },
-  { label: "Resposta", icon: Ambulance },
-  { label: "Privacidade", icon: FileLock },
+  { label: "Seguranca", icon: ShieldCheck },
   { label: "Backup", icon: DatabaseBackup },
+  { label: "Monitoramento", icon: MonitorCheck },
+  { label: "Suporte", icon: Headset },
+  { label: "Automacao", icon: Workflow },
 ] as const;
+
+export const institutionalHighlights = [
+  {
+    title: "Atuacao corporativa",
+    description: "Projetos conduzidos com escopo claro, comunicacao objetiva e responsabilidade operacional.",
+    icon: BriefcaseBusiness,
+  },
+  {
+    title: "Servico continuo",
+    description: "Acompanhamento tecnico para reduzir improvisos e manter a rotina da empresa protegida.",
+    icon: MonitorCheck,
+  },
+  {
+    title: "Base documentada",
+    description: "Organizacao de informacoes tecnicas para facilitar suporte, crescimento e tomada de decisao.",
+    icon: FileCheck2,
+  },
+] satisfies IconItem[];
 
 export const contactLinks = [
   { label: site.contact.email, href: site.contact.emailHref, icon: Mail },
-  { label: site.contact.phone, href: site.contact.phoneHref, icon: Phone },
+  { label: site.contact.phone, href: site.contact.supportHref, icon: Phone },
 ] as const;

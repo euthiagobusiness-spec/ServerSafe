@@ -1,11 +1,10 @@
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
-import { AboutNeto } from "@/components/sections/AboutNeto";
+import { AboutServerSafe } from "@/components/sections/AboutServerSafe";
 import { Continuity } from "@/components/sections/Continuity";
 import { FinalCTA } from "@/components/sections/FinalCTA";
 import { Hero } from "@/components/sections/Hero";
 import { Industries } from "@/components/sections/Industries";
-import { PreServiceQuestionnaire } from "@/components/sections/PreServiceQuestionnaire";
 import { Process } from "@/components/sections/Process";
 import { Solutions } from "@/components/sections/Solutions";
 import { PageMotion } from "@/components/ui/PageMotion";
@@ -33,10 +32,7 @@ export default function Home() {
               <Industries />
             </div>
             <div className="motion-section fade-stage">
-              <AboutNeto />
-            </div>
-            <div className="motion-section fade-stage">
-              <PreServiceQuestionnaire />
+              <AboutServerSafe />
             </div>
             <div className="motion-section fade-stage">
               <Process />

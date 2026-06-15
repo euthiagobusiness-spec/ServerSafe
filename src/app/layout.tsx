@@ -13,28 +13,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ServerSafe | Infraestrutura em nuvem e segurança",
+  title: "ServerSafe | Infraestrutura em nuvem e seguranca",
   description:
-    "Cloud computing, servidores, criptografia, segurança da informação, LGPD, privacidade e continuidade operacional para negócios que dependem de estabilidade e alta disponibilidade.",
+    "Cloud computing, firewall, backup, monitoramento, suporte tecnico e automacao para empresas que precisam de estabilidade e continuidade.",
   keywords: [
     "ServerSafe",
     "cloud computing",
-    "servidores",
-    "segurança",
+    "seguranca",
     "firewall",
     "backup",
-    "criptografia",
-    "failover",
+    "monitoramento",
+    "suporte de TI",
+    "automacao de processos",
     "continuidade operacional",
-    "LGPD",
-    "DPO",
-    "ISO 27001",
-    "ISO 27701",
   ],
   openGraph: {
-    title: "ServerSafe | Infraestrutura em nuvem e segurança",
+    title: "ServerSafe | Infraestrutura em nuvem e seguranca",
     description:
-      "Infraestrutura em nuvem, segurança e governança para empresas que não podem parar.",
+      "Infraestrutura em nuvem, seguranca e suporte tecnico para empresas que dependem de estabilidade.",
     type: "website",
     locale: "pt_BR",
   },
