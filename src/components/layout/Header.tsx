@@ -17,8 +17,8 @@ export function Header() {
             <Image
               src="/assets/brand/server-safe-lockup-clean.png"
               alt={site.name}
-              width={346}
-              height={122}
+              width={1059}
+              height={325}
               priority
               className="site-header-logo h-9 w-auto sm:h-11"
             />

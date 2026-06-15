@@ -11,8 +11,8 @@ export function Footer() {
           <Image
             src="/assets/brand/server-safe-lockup-clean.png"
             alt={site.name}
-            width={346}
-            height={122}
+            width={1059}
+            height={325}
             className="h-auto w-56"
           />
           <p className="mt-4 max-w-md text-sm leading-6 text-slate-600 sm:mt-5 sm:leading-7">
