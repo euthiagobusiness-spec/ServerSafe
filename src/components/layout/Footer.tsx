@@ -9,10 +9,10 @@ export function Footer() {
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-6 gap-y-8 px-4 py-10 sm:px-6 sm:py-12 lg:grid-cols-[1.2fr_1fr_1fr_1fr] lg:px-8">
         <div className="col-span-2 lg:col-span-1">
           <Image
-            src="/assets/brand/server-safe-lockup-dark-transparent.png"
+            src="/assets/brand/server-safe-lockup-clean.png"
             alt={site.name}
-            width={1387}
-            height={404}
+            width={346}
+            height={122}
             className="h-auto w-56"
           />
           <p className="mt-4 max-w-md text-sm leading-6 text-slate-600 sm:mt-5 sm:leading-7">
