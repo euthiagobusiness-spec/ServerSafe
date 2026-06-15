@@ -4,7 +4,6 @@ import { AboutServerSafe } from "@/components/sections/AboutServerSafe";
 import { Continuity } from "@/components/sections/Continuity";
 import { FinalCTA } from "@/components/sections/FinalCTA";
 import { Hero } from "@/components/sections/Hero";
-import { Industries } from "@/components/sections/Industries";
 import { Process } from "@/components/sections/Process";
 import { Solutions } from "@/components/sections/Solutions";
 import { PageMotion } from "@/components/ui/PageMotion";
@@ -27,9 +26,6 @@ export default function Home() {
             </div>
             <div className="motion-section fade-stage">
               <Continuity />
-            </div>
-            <div className="motion-section fade-stage">
-              <Industries />
             </div>
             <div className="motion-section fade-stage">
               <AboutServerSafe />

@@ -35,12 +35,6 @@ export function Footer() {
                 {link.label}
               </a>
             ))}
-            <a
-              className="text-sm text-slate-600 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
-              href={links.about}
-            >
-              Sobre ServerSafe
-            </a>
           </div>
         </div>
 

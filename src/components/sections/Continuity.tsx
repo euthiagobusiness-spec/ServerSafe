@@ -1,32 +1,25 @@
-import { Activity, ClipboardCheck, DatabaseBackup, ShieldCheck } from "lucide-react";
+import { Activity, ClipboardCheck, DatabaseBackup } from "lucide-react";
 
-import { Button } from "@/components/ui/Button";
 import { FloatingOrb } from "@/components/ui/FloatingOrb";
-import { GlassCard } from "@/components/ui/GlassCard";
 import { IconFrame } from "@/components/ui/IconFrame";
 import { SectionIntro } from "@/components/ui/SectionIntro";
 import { SectionShell } from "@/components/ui/SectionShell";
-import { site } from "@/config/site";
+import { industries } from "@/config/site";
 
 const pillars = [
   {
-    title: "Prevencao",
-    description: "Organizacao, monitoramento e revisoes para reduzir riscos antes que virem parada.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Backup",
-    description: "Rotinas de protecao e recuperacao para preservar informacoes importantes.",
+    title: "Protecao e backup",
+    description: "Rotinas verificaveis para preservar dados, acessos e informacoes importantes.",
     icon: DatabaseBackup,
   },
   {
-    title: "Resposta",
-    description: "Atendimento tecnico com prioridade definida e comunicacao objetiva.",
+    title: "Monitoramento e resposta",
+    description: "Acompanhamento de eventos e atendimento tecnico com prioridade definida.",
     icon: Activity,
   },
   {
-    title: "Documentacao",
-    description: "Informacoes tecnicas registradas para facilitar suporte e continuidade.",
+    title: "Documentacao tecnica",
+    description: "Informacoes registradas para facilitar suporte, continuidade e crescimento.",
     icon: ClipboardCheck,
   },
 ] as const;
@@ -34,49 +27,50 @@ const pillars = [
 export function Continuity() {
   return (
     <SectionShell id="continuidade" tone="solid">
-      <FloatingOrb className="-right-20 top-10 h-80 w-96" intensity="low" />
-      <div className="relative mx-auto grid max-w-7xl gap-8 px-4 sm:gap-10 sm:px-6 lg:grid-cols-[1fr_0.88fr] lg:px-8">
-        <div>
+      <span id="setores" className="absolute -top-24" aria-hidden="true" />
+      <FloatingOrb className="-right-20 top-6 h-72 w-96" intensity="low" />
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-8 lg:grid-cols-[0.86fr_1.14fr] lg:items-end">
           <SectionIntro
-            badge="Continuidade operacional"
-            title="Tecnologia organizada para a empresa continuar operando."
+            badge="Continuidade e atuacao"
+            title="Base tecnica para rotinas corporativas, juridicas e de transporte."
             size="large"
             description={
               <>
-                Continuidade depende de rotina, protecao, backup, monitoramento e suporte.
-                A ServerSafe ajuda a estruturar essa base de forma clara, acompanhavel e
-                adequada ao porte da operacao.
+                A ServerSafe estrutura cloud, seguranca, backup e suporte para empresas
+                que precisam manter operacao, comunicacao, arquivos e acessos funcionando
+                com estabilidade.
               </>
             }
           />
-          <div className="mt-6 sm:mt-8">
-            <Button href={site.contact.supportHref} target="_blank" variant="outline">
-              Falar com suporte
-            </Button>
+
+          <div className="grid gap-3 border-y border-white/15 py-5 sm:grid-cols-3">
+            {pillars.map(({ title, description, icon: Icon }) => (
+              <div key={title} className="grid gap-3">
+                <IconFrame icon={Icon} className="h-10 w-10" iconClassName="h-5 w-5" />
+                <div>
+                  <h3 className="text-base font-bold text-slate-950">{title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        <GlassCard className="p-4 sm:p-8">
-          <div className="relative overflow-hidden rounded-[8px] border border-white/50 bg-white/30 p-4 shadow-sm sm:p-5">
-            <div className="relative grid gap-3 sm:gap-4">
-              {pillars.map(({ title, description, icon: Icon }, index) => (
-                <div
-                  key={title}
-                  className="flex items-start gap-3 rounded-[8px] border border-white/50 bg-white/34 p-3 shadow-sm sm:gap-4 sm:p-4"
-                >
-                  <IconFrame icon={Icon} className="h-10 w-10 sm:h-11 sm:w-11" iconClassName="h-5 w-5" />
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-xs text-cyan-300">0{index + 1}</span>
-                      <h3 className="font-bold text-slate-950">{title}</h3>
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-                  </div>
-                </div>
-              ))}
+        <div className="mt-10 grid gap-3 md:grid-cols-3">
+          {industries.map(({ title, description, icon: Icon }) => (
+            <div
+              key={title}
+              className="flex items-start gap-4 border-t border-white/18 pt-5 md:min-h-36"
+            >
+              <Icon className="mt-1 h-5 w-5 shrink-0 text-cyan-300" aria-hidden="true" />
+              <div>
+                <h3 className="text-base font-bold text-slate-950">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+              </div>
             </div>
-          </div>
-        </GlassCard>
+          ))}
+        </div>
       </div>
     </SectionShell>
   );
