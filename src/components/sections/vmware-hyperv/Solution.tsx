@@ -1,11 +1,10 @@
-import { ClipboardCheck, DatabaseBackup, HardDrive, ServerCog } from "lucide-react";
+import { ArrowRight, ClipboardCheck, DatabaseBackup, HardDrive, LockKeyhole, ServerCog, ShieldCheck } from "lucide-react";
 
-import { FeatureCard } from "@/components/ui/FeatureCard";
 import { SectionIntro } from "@/components/ui/SectionIntro";
 import { SectionShell } from "@/components/ui/SectionShell";
 import { vmwareHypervLanding } from "@/config/vmware-hyperv";
 
-const icons = [ClipboardCheck, HardDrive, ServerCog, DatabaseBackup] as const;
+const icons = [ClipboardCheck, HardDrive, ServerCog, DatabaseBackup, LockKeyhole, ShieldCheck] as const;
 
 export function Solution() {
   const { service } = vmwareHypervLanding;
@@ -22,16 +21,29 @@ export function Solution() {
           className="max-w-4xl"
         />
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {service.cards.map((card, index) => (
-            <FeatureCard
-              key={card.title}
-              icon={icons[index]}
-              title={card.title}
-              description={card.description}
-              className="bg-white/82"
-            />
-          ))}
+        <div className="mt-10 grid gap-x-8 gap-y-10 md:grid-cols-2 xl:grid-cols-3">
+          {service.cards.map((card, index) => {
+            const Icon = icons[index];
+
+            return (
+              <article key={card.title} className="flex min-h-[300px] flex-col justify-between border-b border-slate-300 bg-transparent pb-6">
+                <div>
+                  <div className="grid h-14 w-14 place-items-center text-blue-700">
+                    <Icon className="h-10 w-10" aria-hidden="true" />
+                  </div>
+                  <h3 className="mt-6 max-w-xs text-2xl font-black leading-tight text-slate-950">{card.title}</h3>
+                  <p className="mt-4 text-sm leading-7 text-slate-600">{card.description}</p>
+                </div>
+                <a
+                  href="#contato"
+                  className="mt-6 inline-flex items-center gap-2 text-sm font-black text-blue-700 transition hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
+                >
+                  Saiba mais
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </a>
+              </article>
+            );
+          })}
         </div>
       </div>
     </SectionShell>

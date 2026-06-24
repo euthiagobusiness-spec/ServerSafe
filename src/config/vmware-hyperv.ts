@@ -1,8 +1,8 @@
 export const vmwareHypervLanding = {
   nav: [
+    { label: "Quem Somos", href: "#especialistas" },
     { label: "Servico", href: "#servico" },
     { label: "Metodo", href: "#metodo" },
-    { label: "FAQ", href: "#faq" },
     { label: "Contato", href: "#contato" },
   ],
   ctas: {
@@ -13,33 +13,42 @@ export const vmwareHypervLanding = {
   },
   hero: {
     badge: "Migracao VMware para Hyper-V",
-    title: "Migre seu ambiente VMware para Hyper-V com planejamento tecnico.",
+    title: "Migre seu ambiente VMware para",
+    titleAccent: "Hyper-V",
     description:
-      "A ServerSafe ajuda sua empresa a avaliar workloads, preparar a arquitetura Hyper-V e executar a migracao com backup, rollback e validacao pos-mudanca.",
-    highlights: [
-      "Diagnostico do ambiente atual",
-      "Plano de migracao e rollback",
-      "Execucao por janela planejada",
-      "Suporte na estabilizacao",
-    ],
+      "Mudancas de licenciamento, custo e continuidade exigem uma migracao bem planejada. A ServerSafe avalia workloads, prepara a arquitetura Hyper-V e conduz a transicao com backup, rollback e validacao tecnica.",
   },
-  proof: {
-    eyebrow: "Servico consultivo para ambientes corporativos",
-    title: "Menos improviso. Mais previsibilidade para servidores criticos.",
+  recognition: {
+    title: "Empresas com operacoes criticas precisam de migracao planejada, documentada e validada.",
     items: [
-      "Infraestrutura",
-      "Backup",
-      "Firewall",
-      "Redes",
-      "Continuidade",
+      "Diagnostico tecnico",
+      "Arquitetura Hyper-V",
+      "Backup e rollback",
+      "Rede e storage",
+      "Validacao pos-migracao",
       "Suporte tecnico",
     ],
   },
-  service: {
-    badge: "O que a ServerSafe faz",
-    title: "Da leitura do VMware atual ao Hyper-V pronto para operar.",
+  expertise: {
+    title: "Especialistas em infraestrutura critica",
     description:
-      "O projeto combina avaliacao, arquitetura, execucao controlada e documentacao. O escopo final depende da quantidade de hosts, VMs, criticidade e requisitos do ambiente.",
+      "A ServerSafe atua com cloud computing, servidores, redes corporativas, firewall, backup, failover, seguranca da informacao e continuidade operacional. A migracao e conduzida com visao de risco, disponibilidade e operacao.",
+    badges: [
+      "Cloud computing",
+      "Servidores",
+      "Redes",
+      "Firewall",
+      "Backup",
+      "Failover",
+      "Seguranca",
+      "Continuidade",
+    ],
+  },
+  service: {
+    badge: "Conheca nossos servicos",
+    title: "Tudo que sua empresa precisa para migrar com previsibilidade.",
+    description:
+      "A ServerSafe organiza as frentes tecnicas do projeto para que a mudanca de plataforma seja tratada como continuidade de operacao, nao apenas conversao de maquinas virtuais.",
     cards: [
       {
         title: "Avaliacao tecnica",
@@ -50,12 +59,20 @@ export const vmwareHypervLanding = {
         description: "Definicao de hosts, armazenamento, rede, organizacao das VMs e criterios de continuidade.",
       },
       {
-        title: "Migracao controlada",
+        title: "Migracao de VMs",
         description: "Conversao e ativacao por ordem de criticidade, com janela planejada e validacao.",
       },
       {
-        title: "Estabilizacao",
-        description: "Acompanhamento pos-migracao, ajustes tecnicos e documentacao do ambiente.",
+        title: "Backup e rollback",
+        description: "Revisao de contingencia antes da execucao e criterios claros para retorno seguro.",
+      },
+      {
+        title: "Seguranca e compliance",
+        description: "Protecao de acessos, credenciais e dados tecnicos durante a mudanca de ambiente.",
+      },
+      {
+        title: "Suporte pos-migracao",
+        description: "Acompanhamento de estabilizacao, ajustes tecnicos e documentacao final do ambiente.",
       },
     ],
   },
@@ -83,9 +100,9 @@ export const vmwareHypervLanding = {
   },
   form: {
     badge: "Fale com especialistas",
-    title: "Solicite uma avaliacao inicial",
+    title: "Fale com nossos especialistas em infraestrutura",
     description:
-      "Envie os dados basicos e conte, de forma resumida, o que sua empresa precisa migrar. A ServerSafe retorna com os proximos passos.",
+      "Entre em contato e descubra como a ServerSafe pode auxiliar sua empresa no planejamento da migracao VMware para Hyper-V.",
     securityNotice:
       "Nao envie senhas, tokens, IPs publicos, credenciais ou informacoes sensiveis pelo formulario.",
     submitLabel: "Enviar solicitacao",

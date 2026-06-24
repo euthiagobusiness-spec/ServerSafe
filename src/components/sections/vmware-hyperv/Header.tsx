@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Phone } from "lucide-react";
+import { BriefcaseBusiness, Cloud, Mail, Phone, Search, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { site } from "@/config/site";
@@ -9,8 +9,8 @@ import { vmwareHypervLanding } from "@/config/vmware-hyperv";
 export function VmwareHypervHeader() {
   return (
     <>
-      <header className="site-header fixed inset-x-0 top-0 z-50 border-b border-slate-200/80 bg-white/92 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-md">
-        <div className="site-header-inner mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
+      <header className="site-header fixed inset-x-0 top-0 z-50 border-b border-slate-100 bg-white/95 shadow-[0_8px_26px_rgba(15,23,42,0.05)] backdrop-blur-md">
+        <div className="site-header-inner mx-auto flex max-w-7xl items-center justify-between gap-5 px-4 py-3 sm:px-6 lg:px-8">
           <Link
             href="/"
             className="group flex min-w-0 items-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
@@ -22,39 +22,60 @@ export function VmwareHypervHeader() {
               width={1059}
               height={325}
               priority
-              className="site-header-logo h-9 w-auto sm:h-11"
+              className="site-header-logo h-11 w-auto sm:h-14"
             />
           </Link>
 
-          <nav className="site-header-nav hidden items-center gap-6 lg:flex" aria-label="Navegacao da landing page">
-            {vmwareHypervLanding.nav.map((link) => (
+          <div className="flex min-w-0 flex-1 flex-col items-end gap-3">
+            <div className="hidden items-center gap-4 text-xs font-bold text-slate-700 lg:flex">
+              <span className="inline-flex items-center gap-2">
+                <Cloud className="h-4 w-4 text-blue-700" aria-hidden="true" />
+                Infraestrutura critica
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-cyan-700" aria-hidden="true" />
+                Backup e seguranca
+              </span>
               <a
-                key={link.href}
-                href={link.href}
-                className="text-xs font-semibold uppercase tracking-[0.10em] text-slate-600 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
+                href={site.contact.emailHref}
+                className="inline-flex items-center gap-2 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
               >
-                {link.label}
+                <Mail className="h-4 w-4 text-cyan-700" aria-hidden="true" />
+                {site.contact.email}
               </a>
-            ))}
-          </nav>
+              <BriefcaseBusiness className="h-4 w-4 text-blue-700" aria-hidden="true" />
+              <a
+                href={site.contact.supportHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
+              >
+                <Phone className="h-4 w-4 text-blue-700" aria-hidden="true" />
+                {site.contact.phone}
+              </a>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <a
-              href={site.contact.supportHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden min-h-10 items-center gap-2 rounded-[8px] px-3 text-xs font-bold text-slate-600 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600 sm:inline-flex"
-            >
-              <Phone className="h-4 w-4 text-cyan-700" aria-hidden="true" />
-              {site.contact.phone}
-            </a>
-            <Button
-              href="#contato"
-              variant="tech"
-              className="site-header-cta min-h-9 px-3 py-2 text-[0.65rem] sm:min-h-10 sm:px-4 sm:text-xs"
-            >
-              {vmwareHypervLanding.ctas.header}
-            </Button>
+            <div className="flex items-center gap-5">
+              <Search className="hidden h-5 w-5 text-blue-700 lg:block" aria-hidden="true" />
+              <nav className="site-header-nav hidden items-center gap-7 lg:flex" aria-label="Navegacao da landing page">
+                {vmwareHypervLanding.nav.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className="text-sm font-bold text-slate-950 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </nav>
+              <Button
+                href="#contato"
+                variant="tech"
+                className="site-header-cta min-h-10 px-4 py-2 text-[0.7rem] sm:text-xs"
+              >
+                {vmwareHypervLanding.ctas.header}
+              </Button>
+            </div>
           </div>
         </div>
       </header>

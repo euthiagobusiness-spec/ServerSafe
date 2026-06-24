@@ -1,80 +1,65 @@
 import Image from "next/image";
-import { ArrowRight, CheckCircle2, MoveRight, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, MessageCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
-import { SectionBadge } from "@/components/ui/SectionBadge";
 import { site } from "@/config/site";
 import { vmwareHypervLanding } from "@/config/vmware-hyperv";
 
 export function Hero() {
-  const { ctas, hero, proof } = vmwareHypervLanding;
+  const { ctas, hero, recognition } = vmwareHypervLanding;
 
   return (
-    <section id="top" className="relative isolate overflow-hidden bg-white pt-8">
-      <div
-        className="absolute inset-x-0 top-0 -z-10 h-[78%] bg-[linear-gradient(135deg,#eef7ff_0%,#ffffff_42%,#dff8ff_100%)]"
-        aria-hidden="true"
-      />
-      <div
-        className="absolute right-0 top-20 -z-10 h-80 w-1/2 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.14),transparent_64%)]"
-        aria-hidden="true"
-      />
-
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 pb-12 pt-7 sm:px-6 sm:pb-16 sm:pt-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-8 lg:pb-20">
-        <div>
-          <SectionBadge>{hero.badge}</SectionBadge>
-          <h1 className="mt-6 max-w-4xl text-balance text-[2.25rem] font-black leading-[1.02] tracking-normal text-slate-950 sm:text-5xl xl:text-6xl">
-            {hero.title}
+    <section id="top" className="relative isolate overflow-hidden bg-white">
+      <div className="mx-auto grid min-h-[720px] max-w-7xl gap-12 px-4 pb-16 pt-24 sm:px-6 sm:pt-28 lg:grid-cols-[0.42fr_0.58fr] lg:items-center lg:px-8">
+        <div className="relative z-10">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-700">{hero.badge}</p>
+          <h1 className="mt-6 max-w-xl text-balance text-[2.6rem] font-black leading-[1.03] tracking-normal text-slate-950 sm:text-6xl lg:text-[4.1rem]">
+            {hero.title} <span className="text-blue-700">{hero.titleAccent}</span>
           </h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
+          <p className="mt-6 max-w-md text-base leading-8 text-slate-500 sm:text-lg">
             {hero.description}
           </p>
 
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <Button href="#contato">
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+            <Button href="#contato" className="bg-blue-700 px-6 shadow-[0_16px_38px_rgba(29,78,216,0.22)]">
               {ctas.primary}
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" aria-hidden="true" />
             </Button>
-            <Button href="#servico" variant="outline">
+            <Button href="#servico" variant="outline" className="border-slate-950 bg-white px-6 text-slate-950 hover:border-blue-700">
               {ctas.secondary}
             </Button>
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-[8px] border border-slate-200 bg-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
+        <div className="relative min-h-[420px] overflow-hidden bg-[#142925] lg:min-h-[490px]">
           <Image
             src="/assets/brand/server-safe-3d-wallpaper.png"
-            alt="Infraestrutura de servidores e seguranca corporativa"
-            width={1200}
-            height={760}
+            alt="Infraestrutura corporativa preparada para migracao de virtualizacao"
+            width={1280}
+            height={780}
             priority
-            className="h-[360px] w-full object-cover opacity-72 sm:h-[460px]"
+            className="absolute inset-0 h-full w-full object-cover opacity-82"
           />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.86),rgba(15,23,42,0.34)_55%,rgba(8,47,73,0.28))]" />
-          <div className="absolute inset-x-4 bottom-4 grid gap-3 sm:inset-x-6 sm:bottom-6 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-            <VisualBlock label="Ambiente atual" title="VMware" />
-            <MoveRight className="mx-auto hidden h-6 w-6 text-cyan-200 sm:block" aria-hidden="true" />
-            <VisualBlock label="Ambiente planejado" title="Hyper-V" />
-          </div>
-          <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-[8px] border border-cyan-200/30 bg-slate-950/62 px-3 py-2 text-xs font-bold uppercase tracking-[0.10em] text-cyan-100 sm:left-6 sm:top-6">
-            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-            Backup + rollback
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(20,41,37,0.82),rgba(20,41,37,0.24)_48%,rgba(20,41,37,0.08))]" />
+          <div className="absolute bottom-8 left-8 right-8 grid gap-3 sm:grid-cols-2">
+            <BannerPanel label="Ambiente atual" value="VMware" />
+            <BannerPanel label="Destino planejado" value="Hyper-V" />
           </div>
         </div>
       </div>
 
-      <div className="border-y border-slate-200 bg-white">
-        <div className="mx-auto grid max-w-7xl gap-5 px-4 py-7 sm:px-6 lg:grid-cols-[0.85fr_1.15fr] lg:px-8">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">{proof.eyebrow}</p>
-            <h2 className="mt-2 max-w-xl text-2xl font-black leading-tight text-slate-950 sm:text-3xl">
-              {proof.title}
-            </h2>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {proof.items.map((item) => (
-              <div key={item} className="flex min-h-12 items-center gap-2 rounded-[8px] border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-700" aria-hidden="true" />
+      <div className="absolute bottom-5 left-1/2 hidden -translate-x-1/2 items-center gap-2 lg:flex" aria-hidden="true">
+        <span className="h-2 w-2 rounded-full bg-blue-700" />
+        <span className="h-2 w-2 rounded-full bg-slate-300" />
+      </div>
+
+      <div className="border-y border-slate-100 bg-[#f8fafc]">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <p className="text-center text-lg font-bold text-slate-700 sm:text-xl">{recognition.title}</p>
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {recognition.items.map((item) => (
+              <div key={item} className="flex min-h-16 items-center justify-center gap-2 border border-slate-200 bg-white px-3 py-3 text-center text-sm font-bold text-slate-700">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-700" aria-hidden="true" />
                 {item}
               </div>
             ))}
@@ -86,19 +71,20 @@ export function Hero() {
         href={site.contact.supportHref}
         target="_blank"
         rel="noopener noreferrer"
-        className="sr-only"
+        className="fixed bottom-5 right-5 z-40 grid h-14 w-14 place-items-center rounded-full bg-emerald-500 text-white shadow-[0_12px_28px_rgba(16,185,129,0.35)] transition hover:bg-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-600"
+        aria-label="Falar com a ServerSafe pelo WhatsApp"
       >
-        Contato direto ServerSafe
+        <MessageCircle className="h-7 w-7" aria-hidden="true" />
       </a>
     </section>
   );
 }
 
-function VisualBlock({ label, title }: { label: string; title: string }) {
+function BannerPanel({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[8px] border border-white/18 bg-white/12 p-4 text-white shadow-[0_12px_40px_rgba(0,0,0,0.22)] backdrop-blur-md">
-      <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-100">{label}</p>
-      <p className="mt-2 text-2xl font-black">{title}</p>
+    <div className="border border-white/30 bg-white/16 px-5 py-4 text-white backdrop-blur-md">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-100">{label}</p>
+      <p className="mt-2 text-3xl font-black">{value}</p>
     </div>
   );
 }

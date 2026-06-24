@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { Footer } from "@/components/layout/Footer";
+import { Expertise } from "@/components/sections/vmware-hyperv/Expertise";
 import { Faq } from "@/components/sections/vmware-hyperv/Faq";
 import { FinalCta } from "@/components/sections/vmware-hyperv/FinalCta";
 import { VmwareHypervHeader } from "@/components/sections/vmware-hyperv/Header";
@@ -45,6 +46,9 @@ export default function VmwareHypervMigrationPage() {
           <Hero />
         </div>
         <div className="relative z-10">
+          <div className="motion-section fade-stage">
+            <Expertise />
+          </div>
           <div className="motion-section fade-stage">
             <Solution />
           </div>
