@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { BriefcaseBusiness, Cloud, Mail, Phone, Search, ShieldCheck } from "lucide-react";
+import { BriefcaseBusiness, Mail, Phone, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { site } from "@/config/site";
@@ -28,14 +28,6 @@ export function VmwareHypervHeader() {
 
           <div className="flex min-w-0 flex-1 flex-col items-end gap-3">
             <div className="hidden items-center gap-4 text-xs font-bold text-slate-700 lg:flex">
-              <span className="inline-flex items-center gap-2">
-                <Cloud className="h-4 w-4 text-blue-700" aria-hidden="true" />
-                Infraestrutura critica
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-cyan-700" aria-hidden="true" />
-                Backup e seguranca
-              </span>
               <a
                 href={site.contact.emailHref}
                 className="inline-flex items-center gap-2 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
