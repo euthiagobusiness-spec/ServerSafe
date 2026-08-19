@@ -57,7 +57,6 @@ yarn-error.log*
 .pnpm-debug.log*
 .codex/
 .codex-dev.*.log
-AGENTS.md
 CLAUDE.md
 
 # env files (can opt-in for committing if needed)

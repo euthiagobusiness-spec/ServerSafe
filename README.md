@@ -12,14 +12,27 @@ npm run typecheck
 npm run build
 ```
 
-## Escopo
+## ServerSafe AI
 
-- Sem banco de dados.
-- Sem login.
-- Sem checkout.
-- Sem painel administrativo.
-- Sem cookies não essenciais.
-- Sem analytics ou pixels nesta fase.
+A IA está integrada ao mesmo Next.js por uma rota privada definida em
+`SERVERSAFE_AI_SLUG`. Ela não é vinculada à navegação pública nem ao sitemap.
+O acesso usa chave server-side e cookies assinados HttpOnly; conversas e
+projetos persistem no Upstash Redis. O OpenHarness roda em Vercel Sandbox com
+Claude Haiku 4.5 via AWS Bedrock em `us-east-1`.
+
+Consulte [`AGENTS.md`](./AGENTS.md) para arquitetura, segurança, manutenção,
+testes, snapshot e deploy. Os nomes das variáveis estão em [`.env.example`](./.env.example).
+
+## Operacao comercial
+
+A landing permanece isolada da operacao interna. O sistema comercial assistido
+por IA fica em [`sales/`](./sales/README.md), com ICP, scoring, pipeline,
+politicas de aprovacao, mensagens, dados locais migraveis e validacoes.
+
+```bash
+npm run sales:validate
+npm run sales:test
+```
 
 ## Direção visual
 
