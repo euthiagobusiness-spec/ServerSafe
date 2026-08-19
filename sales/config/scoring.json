@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "evidenceMultipliers": {
+    "fact": 1,
+    "inference": 0.65,
+    "hypothesis": 0
+  },
+  "factors": [
+    { "key": "companySize", "label": "Porte", "weight": 12 },
+    { "key": "sectorFit", "label": "Aderencia do setor", "weight": 5 },
+    { "key": "estimatedRevenue", "label": "Faturamento estimado", "weight": 7 },
+    { "key": "employeeCount", "label": "Funcionarios", "weight": 6 },
+    { "key": "technologyComplexity", "label": "Complexidade tecnologica", "weight": 10 },
+    { "key": "infrastructureSignals", "label": "Sinais de infraestrutura", "weight": 9 },
+    { "key": "cloudSignals", "label": "Sinais de cloud", "weight": 5 },
+    { "key": "dataCenterSignals", "label": "Sinais de datacenter", "weight": 5 },
+    { "key": "expansionSignals", "label": "Expansao", "weight": 6 },
+    { "key": "problemEvidence", "label": "Evidencias de problemas", "weight": 8 },
+    { "key": "recentTriggers", "label": "Gatilhos recentes", "weight": 7 },
+    { "key": "contactRelevance", "label": "Relevancia do contato", "weight": 6 },
+    { "key": "migrationNeed", "label": "Necessidade de migracao", "weight": 6 },
+    { "key": "paymentCapacity", "label": "Capacidade de pagamento", "weight": 4 },
+    { "key": "urgency", "label": "Urgencia aparente", "weight": 4 }
+  ]
+}

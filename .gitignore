@@ -70,3 +70,6 @@ CLAUDE.md
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# versioned sales schema
+!sales/db/postgres-schema.sql
