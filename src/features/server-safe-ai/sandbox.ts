@@ -2,9 +2,10 @@ import { Writable } from "node:stream";
 import { Sandbox } from "@vercel/sandbox";
 import { AI_BASE_URL, AI_LIMITS, AI_MODEL } from "./config";
 import { safeActivityLabel } from "./core";
+import { SERVERSAFE_AI_SYSTEM_PROMPT } from "./instructions";
 
-const ALLOWED_TOOLS = ["skill", "tool_search", "web_fetch", "web_search", "brief"];
-const DENIED_TOOLS = [
+export const OPENHARNESS_ALLOWED_TOOLS = ["skill", "tool_search", "web_fetch", "web_search", "brief"];
+export const OPENHARNESS_DENIED_TOOLS = [
   "bash", "ask_user_question", "read_file", "write_file", "edit_file", "notebook_edit", "lsp",
   "mcp_auth", "glob", "grep", "image_to_text", "config", "sleep", "enter_worktree", "exit_worktree",
   "todo_write", "enter_plan_mode", "exit_plan_mode", "cron_create", "cron_list", "cron_delete",
@@ -15,6 +16,29 @@ const DENIED_TOOLS = [
 export type HarnessEvent =
   | { type: "activity"; label: string }
   | { type: "delta"; text: string };
+
+export function buildOpenHarnessCommandArgs(prompt: string, apiKey: string) {
+  return [
+    "-i",
+    "HOME=/vercel/sandbox/home",
+    "PATH=/opt/openharness/bin:/usr/local/bin:/usr/bin:/bin",
+    "LANG=C.UTF-8",
+    "OPENHARNESS_SANDBOX_ENABLED=1",
+    "OPENHARNESS_SANDBOX_FAIL_IF_UNAVAILABLE=1",
+    "OPENHARNESS_SANDBOX_BACKEND=srt",
+    "/opt/openharness/bin/openharness",
+    "-p", prompt,
+    "--system-prompt", SERVERSAFE_AI_SYSTEM_PROMPT,
+    "--model", AI_MODEL,
+    "--base-url", AI_BASE_URL,
+    "--api-key", apiKey,
+    "--max-turns", String(AI_LIMITS.maxTurns),
+    "--output-format", "stream-json",
+    "--permission-mode", "plan",
+    "--allowed-tools", OPENHARNESS_ALLOWED_TOOLS.join(","),
+    "--disallowed-tools", OPENHARNESS_DENIED_TOOLS.join(","),
+  ];
+}
 
 export async function runOpenHarness(
   prompt: string,
@@ -76,25 +100,7 @@ export async function runOpenHarness(
     onEvent({ type: "activity", label: "Iniciando ambiente isolado..." });
     const result = await sandbox.runCommand({
       cmd: "/usr/bin/env",
-      args: [
-        "-i",
-        "HOME=/vercel/sandbox/home",
-        "PATH=/opt/openharness/bin:/usr/local/bin:/usr/bin:/bin",
-        "LANG=C.UTF-8",
-        "OPENHARNESS_SANDBOX_ENABLED=1",
-        "OPENHARNESS_SANDBOX_FAIL_IF_UNAVAILABLE=1",
-        "OPENHARNESS_SANDBOX_BACKEND=srt",
-        "/opt/openharness/bin/openharness",
-        "-p", prompt,
-        "--model", AI_MODEL,
-        "--base-url", AI_BASE_URL,
-        "--api-key", apiKey,
-        "--max-turns", String(AI_LIMITS.maxTurns),
-        "--output-format", "stream-json",
-        "--permission-mode", "plan",
-        "--allowed-tools", ALLOWED_TOOLS.join(","),
-        "--disallowed-tools", DENIED_TOOLS.join(","),
-      ],
+      args: buildOpenHarnessCommandArgs(prompt, apiKey),
       cwd: "/vercel/sandbox/workspace",
       stdout,
       stderr,
