@@ -8,6 +8,9 @@ import {
 import { buildRecentHistory, canStoreTurn, normalizedTitle } from "@/features/server-safe-ai/core";
 import { runOpenHarness } from "@/features/server-safe-ai/sandbox";
 import {
+  executeCancellableTurn, linkedAbortController, onceAsync, throwIfAborted,
+} from "@/features/server-safe-ai/chat-stream";
+import {
   isSameOriginMutation, ownerId,
 } from "@/features/server-safe-ai/security";
 import {
@@ -114,11 +117,7 @@ export async function persistAttachmentUpload(
     created_at: createdAt,
     expires_at: expiresAt,
   }));
-  const records: StoredAttachment[] = metadata.map((item, index) => ({
-    ...item,
-    conversation_id: conversationId,
-    text: extracted[index].text,
-  }));
+  let persistedMetadata = metadata;
 
   await mutateOwnerState(owner, (state, attachments) => {
     const conversation = state.conversations.find((item) => item.conversation_id === conversationId);
@@ -135,12 +134,68 @@ export async function persistAttachmentUpload(
         `Os documentos ativos excederiam o limite de ${AI_LIMITS.conversationAttachmentChars.toLocaleString("pt-BR")} caracteres por conversa. Nenhum conteúdo foi truncado.`,
       );
     }
-    conversation.attachments = [...activeMetadata, ...metadata];
+    if (conversation.permanence_enabled) {
+      persistedMetadata = metadata.map((item): AttachmentMetadata => ({ ...item, expires_at: null }));
+    }
+    const records: StoredAttachment[] = persistedMetadata.map((item, index) => ({
+      ...item,
+      conversation_id: conversationId,
+      text: extracted[index].text,
+    }));
+    conversation.attachments = [...activeMetadata, ...persistedMetadata];
     conversation.updated_at = createdAt;
     attachments.store(records);
   });
 
-  return metadata;
+  return persistedMetadata;
+}
+
+export async function setConversationPermanence(
+  owner: string,
+  conversationId: string,
+  enabled: boolean,
+  now = Date.now(),
+) {
+  return mutateOwnerState(owner, async (state, attachments) => {
+    const conversation = state.conversations.find((item) => item.conversation_id === conversationId);
+    if (!conversation) throw new RequestProblem(404, "Conversa não encontrada.");
+    const currentMetadata = conversation.attachments ?? [];
+    const storedValues = await readAttachmentRecords(
+      owner,
+      currentMetadata.map((item) => item.attachment_id),
+    );
+    const expiresAt = enabled
+      ? null
+      : new Date(now + AI_LIMITS.attachmentTtlSeconds * 1000).toISOString();
+    const retainedMetadata: AttachmentMetadata[] = [];
+    const retainedRecords: StoredAttachment[] = [];
+    const missingIds: string[] = [];
+
+    currentMetadata.forEach((metadata, index) => {
+      const stored = storedValues[index];
+      if (!isStoredAttachment(stored, metadata.attachment_id, conversationId)) {
+        missingIds.push(metadata.attachment_id);
+        return;
+      }
+      const updatedMetadata: AttachmentMetadata = { ...metadata, expires_at: expiresAt };
+      retainedMetadata.push(updatedMetadata);
+      retainedRecords.push({ ...stored, ...updatedMetadata, expires_at: expiresAt });
+    });
+
+    if (missingIds.length) attachments.delete(missingIds);
+    if (retainedRecords.length) attachments.store(retainedRecords);
+    const retainedIds = new Set(retainedMetadata.map((item) => item.attachment_id));
+    conversation.messages.forEach((message) => {
+      if (!message.attachments?.length) return;
+      const retained = message.attachments.filter((item) => retainedIds.has(item.attachment_id));
+      if (retained.length) message.attachments = retained;
+      else delete message.attachments;
+    });
+    conversation.attachments = retainedMetadata;
+    conversation.permanence_enabled = enabled;
+    conversation.updated_at = new Date(now).toISOString();
+    return conversation;
+  });
 }
 
 function transferCookies(source: NextResponse, target: NextResponse | Response) {
@@ -153,7 +208,7 @@ async function dispatch(request: NextRequest, context: Context) {
   const { slug, segments } = await context.params;
   if (!isConfiguredSlug(slug)) return json({ ok: false, error: "Não encontrado." }, 404);
   try { assertRuntimeConfiguration(); }
-  catch { return json({ ok: false, error: "ServerSafe AI ainda não está configurado." }, 503); }
+  catch { return json({ ok: false, error: "AI Teste ainda não está configurada." }, 503); }
 
   const path = segments.join("/");
   const mutation = request.method !== "GET" && request.method !== "HEAD";
@@ -235,7 +290,16 @@ async function dispatch(request: NextRequest, context: Context) {
     const conversation = await mutateOwnerState(owner, (state) => {
       if (state.conversations.length >= AI_LIMITS.maxConversations) throw new StorageLimitError();
       const now = new Date().toISOString();
-      const value = { conversation_id: randomUUID(), project_id: null, title: "Nova conversa", created_at: now, updated_at: now, messages: [], attachments: [] };
+      const value = {
+        conversation_id: randomUUID(),
+        project_id: null,
+        title: "Nova conversa",
+        created_at: now,
+        updated_at: now,
+        messages: [],
+        attachments: [],
+        permanence_enabled: false,
+      };
       state.conversations.unshift(value); return value;
     });
     return transferCookies(cookieCarrier, json({ ok: true, conversation }, 201));
@@ -268,6 +332,20 @@ async function dispatch(request: NextRequest, context: Context) {
       if (projectId && !state.projects.some((p) => p.project_id === projectId)) throw new RequestProblem(404, "Projeto não encontrado.");
       value.project_id = projectId; value.updated_at = new Date().toISOString(); return value;
     });
+    return transferCookies(cookieCarrier, json({ ok: true, conversation }));
+  }
+
+  const permanenceMatch = path.match(/^conversations\/([^/]+)\/permanence$/);
+  if (permanenceMatch && request.method === "PATCH") {
+    const data = await body(request);
+    if (typeof data.enabled !== "boolean") {
+      throw new RequestProblem(400, "A preferência de permanência deve ser verdadeira ou falsa.");
+    }
+    const conversation = await setConversationPermanence(
+      owner,
+      permanenceMatch[1],
+      data.enabled,
+    );
     return transferCookies(cookieCarrier, json({ ok: true, conversation }));
   }
 
@@ -318,16 +396,22 @@ async function dispatch(request: NextRequest, context: Context) {
     if (!canStoreTurn(active, message)) throw new RequestProblem(409, "Esta conversa atingiu o limite de armazenamento. Crie uma nova conversa.");
     const now = Date.now();
     const allMetadata = active.attachments ?? [];
-    const activeMetadata = allMetadata.filter((item) => Date.parse(item.expires_at) > now);
+    const activeMetadata = allMetadata.filter((item) => active.permanence_enabled === true
+      || (item.expires_at !== null && Date.parse(item.expires_at) > now));
     const storedValues = await readAttachmentRecords(owner, activeMetadata.map((item) => item.attachment_id));
     const documents: StoredAttachment[] = [];
     const unavailableNames = allMetadata
-      .filter((item) => Date.parse(item.expires_at) <= now)
+      .filter((item) => active.permanence_enabled !== true
+        && (item.expires_at === null || Date.parse(item.expires_at) <= now))
       .map((item) => item.name);
     activeMetadata.forEach((metadata, index) => {
       const value = storedValues[index];
-      if (isStoredAttachment(value, metadata.attachment_id, conversationId)) documents.push(value);
-      else unavailableNames.push(metadata.name);
+      const retentionMatches = active.permanence_enabled === true
+        ? value?.expires_at === null
+        : typeof value?.expires_at === "string" && Date.parse(value.expires_at) > now;
+      if (isStoredAttachment(value, metadata.attachment_id, conversationId) && retentionMatches) {
+        documents.push(value);
+      } else unavailableNames.push(metadata.name);
     });
     if (attachmentIds.some((attachmentId) => !documents.some((document) => document.attachment_id === attachmentId))) {
       throw new RequestProblem(410, "Um dos documentos anexados expirou ou não está mais disponível. Anexe-o novamente.");
@@ -343,29 +427,64 @@ async function dispatch(request: NextRequest, context: Context) {
     const harnessSlot = await acquireHarnessSlot(AI_LIMITS.maxConcurrency);
     if (!harnessSlot.ok) { await lock.release(); throw new RequestProblem(429, "O servidor está processando o limite de solicitações simultâneas."); }
     const encoder = new TextEncoder();
+    const execution = linkedAbortController(request.signal);
+    const cleanup = onceAsync(async () => {
+      execution.dispose();
+      await Promise.all([lock.release(), harnessSlot.release()]);
+    });
+    let streamClosed = false;
+    let turnPromise: Promise<unknown> | null = null;
     const stream = new ReadableStream({
       start(controller) {
-        const send = (event: string, payload: unknown) => controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`));
+        const send = (event: string, payload: unknown) => {
+          if (streamClosed || execution.controller.signal.aborted) return;
+          try {
+            controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`));
+          } catch {
+            streamClosed = true;
+            execution.controller.abort();
+          }
+        };
+        const close = () => {
+          if (streamClosed) return;
+          streamClosed = true;
+          try { controller.close(); } catch { /* o consumidor já cancelou o stream */ }
+        };
         send("activity", { label: "Processando..." });
-        runOpenHarness(prompt, (event) => send(event.type, event.type === "delta" ? { text: event.text } : { label: event.label }), request.signal)
-          .then(async (answer) => {
-            const now = new Date().toISOString();
+        turnPromise = executeCancellableTurn({
+          signal: execution.controller.signal,
+          run: () => runOpenHarness(
+            prompt,
+            (event) => send(event.type, event.type === "delta" ? { text: event.text } : { label: event.label }),
+            execution.controller.signal,
+          ),
+          persist: async (answer) => {
+            throwIfAborted(execution.controller.signal);
+            const completedAt = new Date().toISOString();
             await mutateOwnerState(owner, (fresh) => {
               const conversation = fresh.conversations.find((c) => c.conversation_id === conversationId);
               if (!conversation) throw new Error("CONVERSATION_REMOVED");
+              throwIfAborted(execution.controller.signal);
               conversation.messages.push(
                 { role: "user", text: message, ...(messageAttachments.length ? { attachments: messageAttachments } : {}) },
                 { role: "assistant", text: answer },
               );
               if (conversation.title === "Nova conversa" || conversation.messages.length === 2) conversation.title = normalizedTitle(message).slice(0, 60);
-              conversation.updated_at = now;
-            });
-            send("done", { conversation_id: conversationId, updated_at: now });
-          })
-          .catch(() => send("error", { message: "A solicitação não pôde ser concluída." }))
-          .finally(async () => { await Promise.all([lock.release(), harnessSlot.release()]); controller.close(); });
+              conversation.updated_at = completedAt;
+            }, { signal: execution.controller.signal });
+          },
+          onDone: () => send("done", { conversation_id: conversationId }),
+          onError: () => send("error", { message: "A solicitação não pôde ser concluída." }),
+          cleanup,
+        });
+        void turnPromise.finally(close);
       },
-      async cancel() { await Promise.all([lock.release(), harnessSlot.release()]); },
+      async cancel(reason) {
+        streamClosed = true;
+        execution.controller.abort(reason);
+        if (turnPromise) await turnPromise;
+        else await cleanup();
+      },
     });
     const response = new Response(stream, { headers: { ...secureHeaders, "Content-Type": "text/event-stream; charset=utf-8", "X-Accel-Buffering": "no" } });
     return transferCookies(cookieCarrier, response);

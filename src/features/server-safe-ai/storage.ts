@@ -3,6 +3,7 @@ import { Redis } from "@upstash/redis";
 import { emptyOwnerState, type OwnerState } from "./types";
 import { AI_LIMITS } from "./config";
 import type { StoredAttachment } from "./attachments";
+import { throwIfAborted } from "./chat-stream";
 
 export class StorageLimitError extends Error {
   constructor() { super("STORAGE_LIMIT"); }
@@ -40,8 +41,9 @@ function pruneExpiredAttachments(state: OwnerState, now = Date.now()) {
   state.conversations.forEach((conversation) => {
     const current = conversation.attachments ?? [];
     const active = current.filter((attachment) => {
-      const expiresAt = Date.parse(attachment.expires_at);
-      const keep = Number.isFinite(expiresAt) && expiresAt > now;
+      const expiresAt = attachment.expires_at ? Date.parse(attachment.expires_at) : Number.NaN;
+      const keep = conversation.permanence_enabled === true
+        || (Number.isFinite(expiresAt) && expiresAt > now);
       if (!keep) expiredIds.add(attachment.attachment_id);
       return keep;
     });
@@ -77,14 +79,17 @@ export async function readOwnerState(owner: string): Promise<OwnerState> {
 export async function mutateOwnerState<T>(
   owner: string,
   mutation: (state: OwnerState, attachments: AttachmentChanges) => T | Promise<T>,
+  options: { signal?: AbortSignal } = {},
 ): Promise<T> {
   const client = getRedis();
   const token = randomUUID();
   let acquired = false;
+  throwIfAborted(options.signal);
   for (let attempt = 0; attempt < 8; attempt += 1) {
     acquired = Boolean(await client.set(lockKey(owner), token, { nx: true, ex: 8 }));
     if (acquired) break;
     await new Promise((resolve) => setTimeout(resolve, 40 + attempt * 25));
+    throwIfAborted(options.signal);
   }
   if (!acquired) throw new Error("STORAGE_BUSY");
   try {
@@ -109,10 +114,15 @@ export async function mutateOwnerState<T>(
     changes.delete(expired.expiredIds);
     const result = await mutation(state, changes);
     if (JSON.stringify(state).length > AI_LIMITS.ownerStorageChars) throw new StorageLimitError();
+    throwIfAborted(options.signal);
 
     if (records.size || attachmentIdsToDelete.size) {
       const transaction = client.multi();
       records.forEach((record) => {
+        if (record.expires_at === null) {
+          transaction.set(attachmentStorageKey(owner, record.attachment_id), record);
+          return;
+        }
         const expiresAt = Date.parse(record.expires_at);
         if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error("ATTACHMENT_EXPIRATION_INVALID");
         transaction.set(attachmentStorageKey(owner, record.attachment_id), record, { pxat: expiresAt });

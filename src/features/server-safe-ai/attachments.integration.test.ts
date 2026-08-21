@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import type { Redis } from "@upstash/redis";
-import { persistAttachmentUpload } from "../../app/[slug]/api/[...segments]/route";
+import {
+  persistAttachmentUpload, setConversationPermanence,
+} from "../../app/[slug]/api/[...segments]/route";
+import { isAbortError } from "./chat-stream";
 import { isStoredAttachment } from "./attachments";
 import { AI_LIMITS } from "./config";
 import {
@@ -91,6 +94,11 @@ class MemoryRedis {
 
   peek<T>(key: string) {
     return this.get<T>(key);
+  }
+
+  expiration(key: string) {
+    this.purge(this.entries, key);
+    return this.entries.get(key)?.expiresAt;
   }
 }
 
@@ -187,4 +195,84 @@ test("expiração remove conteúdo, metadados, contador e referências de mensag
 test("margem multipart não altera o limite documental de 4 MiB", () => {
   assert.equal(AI_LIMITS.attachmentRequestBytes, 4 * 1024 * 1024);
   assert.equal(AI_LIMITS.attachmentMultipartBodyBytes, AI_LIMITS.attachmentRequestBytes + 256 * 1024);
+});
+
+test("permanência é isolada por conversa, remove TTL e restaura sete dias ao desligar", async (context) => {
+  const memory = useMemoryRedis(context);
+  context.mock.method(Date, "now", () => memory.now);
+  const owner = "owner-permanence";
+  const conversationId = "conversation-permanence";
+  await mutateOwnerState(owner, (state) => {
+    state.conversations.push(conversation(conversationId), conversation("conversation-other"));
+  });
+  assert.equal(memory.expiration(`ssai:v1:owner:${owner}:state`), undefined);
+  const [uploaded] = await persistAttachmentUpload(
+    owner,
+    conversationId,
+    [new File(["Documento sensível."], "sensivel.txt", { type: "text/plain" })],
+    memory.now,
+  );
+  const key = attachmentStorageKey(owner, uploaded.attachment_id);
+  assert.equal(memory.expiration(key), memory.now + AI_LIMITS.attachmentTtlSeconds * 1000);
+
+  const permanent = await setConversationPermanence(owner, conversationId, true, memory.now);
+  assert.equal(permanent.permanence_enabled, true);
+  assert.equal(permanent.attachments?.[0].expires_at, null);
+  assert.equal(memory.expiration(key), undefined);
+  const [permanentRecord] = await readAttachmentRecords(owner, [uploaded.attachment_id]);
+  assert.equal(permanentRecord?.expires_at, null);
+  assert.equal((await readOwnerState(owner)).conversations[1].permanence_enabled, undefined);
+  assert.equal((await readOwnerState("owner-other")).conversations.length, 0);
+
+  memory.advance(AI_LIMITS.attachmentTtlSeconds * 1000 + 1);
+  assert.notEqual((await readAttachmentRecords(owner, [uploaded.attachment_id]))[0], null);
+  assert.equal((await readOwnerState(owner)).conversations[0].attachments?.length, 1);
+
+  const standard = await setConversationPermanence(owner, conversationId, false, memory.now);
+  assert.equal(standard.permanence_enabled, false);
+  assert.equal(
+    Date.parse(standard.attachments?.[0].expires_at ?? ""),
+    memory.now + AI_LIMITS.attachmentTtlSeconds * 1000,
+  );
+  assert.equal(memory.expiration(key), memory.now + AI_LIMITS.attachmentTtlSeconds * 1000);
+
+  memory.advance(AI_LIMITS.attachmentTtlSeconds * 1000 + 1);
+  assert.equal((await readAttachmentRecords(owner, [uploaded.attachment_id]))[0], null);
+  assert.deepEqual((await readOwnerState(owner)).conversations[0].attachments, []);
+});
+
+test("upload em conversa permanente nasce sem expiração automática", async (context) => {
+  const memory = useMemoryRedis(context);
+  context.mock.method(Date, "now", () => memory.now);
+  const owner = "owner-new-permanent";
+  const conversationId = "conversation-new-permanent";
+  const value = conversation(conversationId);
+  value.permanence_enabled = true;
+  await mutateOwnerState(owner, (state) => { state.conversations.push(value); });
+
+  const [metadata] = await persistAttachmentUpload(
+    owner,
+    conversationId,
+    [new File(["Conteúdo permanente."], "permanente.txt", { type: "text/plain" })],
+    memory.now,
+  );
+  assert.equal(metadata.expires_at, null);
+  assert.equal(memory.expiration(attachmentStorageKey(owner, metadata.attachment_id)), undefined);
+});
+
+test("sinal abortado impede gravação do turno no OwnerState", async (context) => {
+  useMemoryRedis(context);
+  const owner = "owner-aborted";
+  const conversationId = "conversation-aborted";
+  await mutateOwnerState(owner, (state) => { state.conversations.push(conversation(conversationId)); });
+  const controller = new AbortController();
+
+  await assert.rejects(
+    () => mutateOwnerState(owner, (state) => {
+      state.conversations[0].messages.push({ role: "assistant", text: "resposta parcial" });
+      controller.abort();
+    }, { signal: controller.signal }),
+    isAbortError,
+  );
+  assert.deepEqual((await readOwnerState(owner)).conversations[0].messages, []);
 });

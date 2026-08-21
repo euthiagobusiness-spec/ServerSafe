@@ -3,6 +3,7 @@ import { Sandbox } from "@vercel/sandbox";
 import { AI_BASE_URL, AI_LIMITS, AI_MODEL } from "./config";
 import { safeActivityLabel } from "./core";
 import { SERVERSAFE_AI_SYSTEM_PROMPT } from "./instructions";
+import { throwIfAborted } from "./chat-stream";
 
 export const OPENHARNESS_ALLOWED_TOOLS = ["skill", "tool_search", "web_fetch", "web_search", "brief"];
 export const OPENHARNESS_DENIED_TOOLS = [
@@ -48,6 +49,7 @@ export async function runOpenHarness(
   const snapshotId = process.env.SERVERSAFE_AI_SANDBOX_SNAPSHOT_ID;
   const apiKey = process.env.SERVERSAFE_BEDROCK_API_KEY;
   if (!snapshotId || !apiKey) throw new Error("AI_RUNTIME_NOT_CONFIGURED");
+  throwIfAborted(signal);
 
   const sandbox = await Sandbox.create({
     source: { type: "snapshot", snapshotId },
@@ -58,6 +60,7 @@ export async function runOpenHarness(
   let answer = "";
   let streamChars = 0;
   const processLine = (line: string) => {
+    throwIfAborted(signal);
     if (!line.trim()) return;
     let event: Record<string, unknown>;
     try { event = JSON.parse(line) as Record<string, unknown>; } catch { return; }
@@ -97,6 +100,7 @@ export async function runOpenHarness(
   const stderr = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
 
   try {
+    throwIfAborted(signal);
     onEvent({ type: "activity", label: "Iniciando ambiente isolado..." });
     const result = await sandbox.runCommand({
       cmd: "/usr/bin/env",
@@ -107,6 +111,7 @@ export async function runOpenHarness(
       signal,
       timeoutMs: AI_LIMITS.sandboxTimeoutMs,
     });
+    throwIfAborted(signal);
     if (buffer.trim()) processLine(buffer);
     if (result.exitCode !== 0) throw new Error("OPENHARNESS_FAILED");
     return answer.trim();

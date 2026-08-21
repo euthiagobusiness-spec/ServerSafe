@@ -15,7 +15,7 @@ export type ChatAttachment = {
 export type AttachmentMetadata = ChatAttachment & {
   extracted_chars: number;
   created_at: string;
-  expires_at: string;
+  expires_at: string | null;
 };
 
 export type ChatMessage = {
@@ -32,6 +32,7 @@ export type Conversation = {
   updated_at: string;
   messages: ChatMessage[];
   attachments?: AttachmentMetadata[];
+  permanence_enabled?: boolean;
 };
 
 export type Project = {
