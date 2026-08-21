@@ -1,56 +1,51 @@
 "use client";
 
-import {
-  ChangeEvent, DragEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState,
-} from "react";
-import {
-  ChevronDown, FileText, FolderInput, MessageSquarePlus, Paperclip, Pencil, Plus, Trash2, X,
-} from "lucide-react";
-import Markdown from "react-markdown";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isAbortError } from "./chat-stream";
-import { safeMarkdownUrl } from "./markdown";
+import { ServerSafeAIComposer, type Notice, type PendingAttachment } from "./ServerSafeAIComposer";
+import { ServerSafeAIDialog, type DialogOption, type DialogState } from "./ServerSafeAIDialog";
+import { ServerSafeAIHeader } from "./ServerSafeAIHeader";
+import { ServerSafeAIMessageList } from "./ServerSafeAIMessageList";
+import { ServerSafeAISidebar, type ConversationSummary } from "./ServerSafeAISidebar";
 import styles from "./server-safe-ai.module.css";
 import type { AttachmentMetadata, ChatAttachment, ChatMessage, Conversation, Project } from "./types";
-
-type Summary = Omit<Conversation, "messages"> & { message_count: number; attachment_count: number };
-type PendingAttachment = { id: string; file: File };
-type Notice = { message: string; kind: "status" | "success" | "error" };
-type DialogOption = { value: string; label: string };
-type DialogState =
-  | {
-    kind: "text";
-    title: string;
-    description: string;
-    confirmLabel: string;
-    initialValue: string;
-    resolve: (value: string | null) => void;
-  }
-  | {
-    kind: "select";
-    title: string;
-    description: string;
-    confirmLabel: string;
-    initialValue: string;
-    options: DialogOption[];
-    resolve: (value: string | null) => void;
-  }
-  | {
-    kind: "confirm";
-    title: string;
-    description: string;
-    confirmLabel: string;
-    destructive?: boolean;
-    resolve: (value: boolean) => void;
-  };
 
 const MAX_FILES_PER_UPLOAD = 3;
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".txt"];
+const SIDEBAR_PREFERENCE_KEY = "ssai-sidebar-collapsed:v1";
+const SIDEBAR_PREFERENCE_EVENT = "ssai-sidebar-preference";
 
-function displayBytes(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
+function readSidebarPreference() {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(SIDEBAR_PREFERENCE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function subscribeSidebarPreference(onStoreChange: () => void) {
+  const handleChange = (event: Event) => {
+    if (event instanceof StorageEvent && event.key !== SIDEBAR_PREFERENCE_KEY) return;
+    onStoreChange();
+  };
+  window.addEventListener("storage", handleChange);
+  window.addEventListener(SIDEBAR_PREFERENCE_EVENT, handleChange);
+  return () => {
+    window.removeEventListener("storage", handleChange);
+    window.removeEventListener(SIDEBAR_PREFERENCE_EVENT, handleChange);
+  };
+}
+
+function saveSidebarPreference(collapsed: boolean) {
+  try {
+    localStorage.setItem(SIDEBAR_PREFERENCE_KEY, collapsed ? "1" : "0");
+    window.dispatchEvent(new Event(SIDEBAR_PREFERENCE_EVENT));
+  } catch {
+    // A preferência visual é opcional; storage pode estar indisponível.
+  }
 }
 
 function messageAttachment(metadata: AttachmentMetadata): ChatAttachment {
@@ -65,17 +60,22 @@ function messageAttachment(metadata: AttachmentMetadata): ChatAttachment {
 export function ServerSafeAIClient({ basePath }: { basePath: string }) {
   const apiBase = `${basePath}/api`;
   const [projects, setProjects] = useState<Project[]>([]);
-  const [conversations, setConversations] = useState<Summary[]>([]);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [active, setActive] = useState<Conversation | null>(null);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
-  const [dragActive, setDragActive] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [dialogValue, setDialogValue] = useState("");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [mobileViewport, setMobileViewport] = useState(false);
+  const sidebarCollapsed = useSyncExternalStore(
+    subscribeSidebarPreference,
+    readSidebarPreference,
+    () => false,
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const request = useCallback(async (path: string, init: RequestInit = {}) => {
@@ -112,19 +112,31 @@ export function ServerSafeAIClient({ basePath }: { basePath: string }) {
   }, [request, refresh]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: sending ? "auto" : "smooth", block: "end" });
   }, [active?.messages, sending]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  const chatsByProject = useMemo(
-    () => new Map(projects.map((project) => [
-      project.project_id,
-      conversations.filter((conversation) => conversation.project_id === project.project_id),
-    ])),
-    [projects, conversations],
-  );
-  const normalChats = conversations.filter((conversation) => !conversation.project_id);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 760px)");
+    const updateViewport = () => {
+      setMobileViewport(media.matches);
+      if (!media.matches) setMobileSidebarOpen(false);
+    };
+    updateViewport();
+    media.addEventListener("change", updateViewport);
+    return () => media.removeEventListener("change", updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileSidebarOpen) return undefined;
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setMobileSidebarOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [mobileSidebarOpen]);
+
   const permanenceEnabled = active?.permanence_enabled === true;
 
   function showNotice(messageValue: string, kind: Notice["kind"] = "status") {
@@ -181,6 +193,26 @@ export function ServerSafeAIClient({ basePath }: { basePath: string }) {
     setDialog(null);
   }
 
+  function toggleSidebarCollapsed() {
+    saveSidebarPreference(!sidebarCollapsed);
+  }
+
+  function toggleSidebar() {
+    if (mobileViewport) {
+      setMobileSidebarOpen((current) => !current);
+      return;
+    }
+    toggleSidebarCollapsed();
+  }
+
+  function startNewConversation() {
+    setActive(null);
+    setMessage("");
+    setPendingAttachments([]);
+    setNotice(null);
+    setMobileSidebarOpen(false);
+  }
+
   function addFiles(files: File[]) {
     if (sending || !files.length) return;
     const accepted: PendingAttachment[] = [];
@@ -218,21 +250,11 @@ export function ServerSafeAIClient({ basePath }: { basePath: string }) {
     if (accepted.length) setPendingAttachments((items) => [...items, ...accepted]);
   }
 
-  function onFileChange(event: ChangeEvent<HTMLInputElement>) {
-    addFiles(Array.from(event.currentTarget.files ?? []));
-    event.currentTarget.value = "";
-  }
-
-  function onDrop(event: DragEvent<HTMLElement>) {
-    event.preventDefault();
-    setDragActive(false);
-    addFiles(Array.from(event.dataTransfer.files));
-  }
-
   async function openConversation(id: string, clearNotice = true) {
     try {
       const data = await request(`conversations/${encodeURIComponent(id)}`);
       setActive(data.conversation);
+      setMobileSidebarOpen(false);
       try { localStorage.setItem("ssai-last-conversation:v1", id); } catch { /* storage pode estar indisponível */ }
       if (clearNotice) setNotice(null);
     } catch (error) {
@@ -258,7 +280,7 @@ export function ServerSafeAIClient({ basePath }: { basePath: string }) {
     }
   }
 
-  async function renameConversation(item: Summary) {
+  async function renameConversation(item: ConversationSummary) {
     const title = await askText(
       "Renomear conversa",
       "Escolha um título curto e fácil de identificar.",
@@ -277,7 +299,7 @@ export function ServerSafeAIClient({ basePath }: { basePath: string }) {
     }
   }
 
-  async function moveConversation(item: Summary) {
+  async function moveConversation(item: ConversationSummary) {
     const projectId = await askSelect(
       "Mover conversa",
       "Selecione o destino desta conversa.",
@@ -299,7 +321,7 @@ export function ServerSafeAIClient({ basePath }: { basePath: string }) {
     }
   }
 
-  async function removeConversation(item: Summary) {
+  async function removeConversation(item: ConversationSummary) {
     const confirmed = await askConfirm(
       "Excluir conversa",
       `A conversa “${item.title}” e seus documentos serão removidos. Esta ação não pode ser desfeita.`,
@@ -377,40 +399,6 @@ export function ServerSafeAIClient({ basePath }: { basePath: string }) {
     } catch (error) {
       showNotice(error instanceof Error ? error.message : "Falha ao alterar permanência.", "error");
     }
-  }
-
-  function renderConversationRow(item: Summary) {
-    return (
-      <div
-        key={item.conversation_id}
-        className={`${styles.conversationRow} ${active?.conversation_id === item.conversation_id ? styles.active : ""}`}
-      >
-        <button
-          type="button"
-          className={styles.conversationTitle}
-          onClick={() => openConversation(item.conversation_id)}
-          disabled={sending}
-        >
-          <span>{item.title}</span>
-          {item.attachment_count > 0 && (
-            <span className={styles.attachmentBadge} title={`${item.attachment_count} anexo(s)`}>
-              <Paperclip size={12} aria-hidden /> {item.attachment_count}
-            </span>
-          )}
-        </button>
-        <div className={styles.rowActions}>
-          <button type="button" title="Renomear" aria-label="Renomear conversa" onClick={() => renameConversation(item)} disabled={sending}>
-            <Pencil size={15} aria-hidden />
-          </button>
-          <button type="button" title="Mover" aria-label="Mover conversa" onClick={() => moveConversation(item)} disabled={sending}>
-            <FolderInput size={15} aria-hidden />
-          </button>
-          <button type="button" title="Excluir" aria-label="Excluir conversa" onClick={() => removeConversation(item)} disabled={sending}>
-            <Trash2 size={15} aria-hidden />
-          </button>
-        </div>
-      </div>
-    );
   }
 
   function interrupt() {
@@ -528,272 +516,65 @@ export function ServerSafeAIClient({ basePath }: { basePath: string }) {
     }
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      void send();
-    }
-  }
-
   return (
-    <div className={styles.shell}>
-      <aside className={styles.sidebar}>
-        <div className={styles.brand}>AI Teste</div>
-        <button
-          type="button"
-          className={styles.newChat}
-          onClick={() => {
-            setActive(null);
-            setMessage("");
-            setPendingAttachments([]);
-            setNotice(null);
-          }}
+    <div className={`${styles.shell} ${sidebarCollapsed ? styles.shellSidebarCollapsed : ""}`}>
+      <ServerSafeAISidebar
+        projects={projects}
+        conversations={conversations}
+        activeConversationId={active?.conversation_id ?? null}
+        collapsed={sidebarCollapsed}
+        mobileViewport={mobileViewport}
+        mobileOpen={mobileSidebarOpen}
+        disabled={sending}
+        onToggleCollapsed={toggleSidebarCollapsed}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+        onNewConversation={startNewConversation}
+        onCreateProject={() => { void createProject(); }}
+        onOpenConversation={(conversationId) => { void openConversation(conversationId); }}
+        onRenameConversation={(conversation) => { void renameConversation(conversation); }}
+        onMoveConversation={(conversation) => { void moveConversation(conversation); }}
+        onDeleteConversation={(conversation) => { void removeConversation(conversation); }}
+        onRenameProject={(project) => { void renameProject(project); }}
+        onDeleteProject={(project) => { void removeProject(project); }}
+      />
+
+      <section className={styles.chat} inert={mobileSidebarOpen ? true : undefined}>
+        <ServerSafeAIHeader
+          conversationTitle={active?.title ?? "Nova conversa"}
+          hasActiveConversation={active !== null}
+          permanenceEnabled={permanenceEnabled}
           disabled={sending}
-        >
-          <MessageSquarePlus size={18} aria-hidden />
-          <span>Nova conversa</span>
-        </button>
-        <div className={styles.sectionHeader}>
-          <span>Projetos</span>
-          <button type="button" onClick={createProject} aria-label="Novo projeto" title="Novo projeto" disabled={sending}>
-            <Plus size={17} aria-hidden />
-          </button>
-        </div>
-        <div className={styles.list}>
-          {projects.map((project) => (
-            <div key={project.project_id} className={styles.project}>
-              <div className={styles.projectHeader}>
-                <span><ChevronDown size={14} aria-hidden />{project.name}</span>
-                <div className={styles.rowActions}>
-                  <button type="button" title="Renomear" aria-label={`Renomear projeto ${project.name}`} onClick={() => renameProject(project)} disabled={sending}>
-                    <Pencil size={15} aria-hidden />
-                  </button>
-                  <button type="button" title="Excluir" aria-label={`Excluir projeto ${project.name}`} onClick={() => removeProject(project)} disabled={sending}>
-                    <Trash2 size={15} aria-hidden />
-                  </button>
-                </div>
-              </div>
-              {(chatsByProject.get(project.project_id) ?? []).map(renderConversationRow)}
-            </div>
-          ))}
-        </div>
-        <div className={styles.sectionHeader}><span>Chats</span></div>
-        <div className={styles.list}>
-          {normalChats.map(renderConversationRow)}
-        </div>
-      </aside>
+          sidebarVisible={mobileViewport ? mobileSidebarOpen : !sidebarCollapsed}
+          onToggleSidebar={toggleSidebar}
+          onTogglePermanence={() => { void updatePermanence(); }}
+        />
 
-      <section className={styles.chat}>
-        <header className={styles.chatHeader}>
-          <div className={styles.onlineLabel}><span className={styles.statusDot} />AI Teste</div>
-          <strong>{active?.title ?? "Nova conversa"}</strong>
-          <div className={styles.permanenceControl}>
-            <span>Permanência do chat</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={permanenceEnabled}
-              aria-label={`Permanência do chat ${permanenceEnabled ? "ativada" : "desativada"}`}
-              className={`${styles.switch} ${permanenceEnabled ? styles.switchOn : ""}`}
-              onClick={updatePermanence}
-              disabled={!active || sending}
-            >
-              <i />
-            </button>
-            <b>{permanenceEnabled ? "ON" : "OFF"}</b>
-          </div>
-        </header>
+        <ServerSafeAIMessageList active={active} sending={sending} bottomRef={bottomRef} />
 
-        {active && (
-          <div className={styles.retentionInfo}>
-            <span><strong>Mensagens:</strong> sem expiração automática.</span>
-            <span>
-              <strong>Documentos:</strong>{" "}
-              {permanenceEnabled
-                ? "sem expiração automática enquanto a permanência estiver ativa."
-                : "expiram 7 dias após o upload."}
-            </span>
-          </div>
-        )}
-
-        <main className={styles.messages}>
-          {!active?.messages.length && (
-            <div className={styles.welcome}>
-              <div className={styles.mark}>AI</div>
-              <h1>Como posso ajudar?</h1>
-              <p>Converse com a AI Teste, pesquise na web e organize seu trabalho em projetos.</p>
-            </div>
-          )}
-          {active?.messages.map((item: ChatMessage, index) => (
-            <div
-              key={index}
-              className={`${styles.messageRow} ${item.role === "user" ? styles.user : styles.assistant}`}
-            >
-              <div className={styles.bubble}>
-                <b>{item.role === "user" ? "Você" : "AI Teste"}</b>
-                {item.attachments?.length ? (
-                  <div className={styles.messageAttachments}>
-                    {item.attachments.map((attachment) => (
-                      <span key={attachment.attachment_id}>
-                        <FileText size={14} aria-hidden />{attachment.name}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-                {item.role === "assistant" ? (
-                  <div className={styles.markdown}>
-                    <Markdown
-                      skipHtml
-                      urlTransform={safeMarkdownUrl}
-                      components={{
-                        a: ({ children, href }) => href
-                          ? <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
-                          : <span>{children}</span>,
-                        img: ({ alt }) => <span>{alt || "Imagem não exibida"}</span>,
-                      }}
-                    >
-                      {item.text}
-                    </Markdown>
-                  </div>
-                ) : <div className={styles.plainText}>{item.text}</div>}
-              </div>
-            </div>
-          ))}
-          {sending && (
-            <div className={`${styles.messageRow} ${styles.assistant}`}>
-              <div className={styles.processing} aria-label="Processando resposta"><i /><i /><i /></div>
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </main>
-
-        <footer
-          className={`${styles.composer} ${dragActive ? styles.dragActive : ""}`}
-          onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }}
-          onDragOver={(event) => event.preventDefault()}
-          onDragLeave={(event) => {
-            const nextTarget = event.relatedTarget;
-            if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) setDragActive(false);
+        <ServerSafeAIComposer
+          value={message}
+          sending={sending}
+          pendingAttachments={pendingAttachments}
+          notice={notice}
+          onValueChange={setMessage}
+          onAddFiles={addFiles}
+          onRemoveAttachment={(attachmentId) => {
+            setPendingAttachments((items) => items.filter((item) => item.id !== attachmentId));
           }}
-          onDrop={onDrop}
-        >
-          {notice && (
-            <div
-              className={`${styles.notice} ${notice.kind === "error" ? styles.noticeError : ""} ${notice.kind === "success" ? styles.noticeSuccess : ""}`}
-              role={notice.kind === "error" ? "alert" : "status"}
-              aria-live="polite"
-            >
-              {notice.message}
-            </div>
-          )}
-          <input
-            ref={fileInputRef}
-            className={styles.fileInput}
-            type="file"
-            multiple
-            accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-            onChange={onFileChange}
-            disabled={sending}
-          />
-          {pendingAttachments.length > 0 && (
-            <div className={styles.pendingAttachments}>
-              {pendingAttachments.map((item) => (
-                <div key={item.id} className={styles.pendingAttachment}>
-                  <FileText size={16} aria-hidden />
-                  <span><strong>{item.file.name}</strong><small>{displayBytes(item.file.size)}</small></span>
-                  <button
-                    type="button"
-                    aria-label={`Remover ${item.file.name}`}
-                    onClick={() => setPendingAttachments((items) => items.filter((candidate) => candidate.id !== item.id))}
-                    disabled={sending}
-                  >
-                    <X size={16} aria-hidden />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className={styles.composerRow}>
-            <button
-              type="button"
-              className={styles.attachButton}
-              aria-label="Anexar documentos"
-              title="Anexar PDF, DOCX ou TXT"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={sending}
-            >
-              <Paperclip size={20} aria-hidden />
-            </button>
-            <textarea
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder="Digite sua mensagem…"
-              disabled={sending}
-            />
-            {sending ? (
-              <button type="button" className={styles.interruptButton} onClick={interrupt}>Interromper</button>
-            ) : (
-              <button
-                type="button"
-                className={styles.sendButton}
-                onClick={send}
-                disabled={!message.trim() && !pendingAttachments.length}
-              >
-                Enviar
-              </button>
-            )}
-          </div>
-          <small>
-            PDF, DOCX ou TXT · até 3 arquivos · 3 MB cada · 4 MB por envio ·{" "}
-            {permanenceEnabled ? "documentos sem expiração automática" : "documentos expiram em 7 dias"}
-          </small>
-        </footer>
+          onSend={send}
+          onInterrupt={interrupt}
+        />
       </section>
 
-      {dialog && (
-        <div className={styles.dialogBackdrop} onMouseDown={(event) => {
-          if (event.target === event.currentTarget) cancelDialog();
-        }}>
-          <form
-            className={styles.dialog}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="dialog-title"
-            aria-describedby="dialog-description"
-            onSubmit={(event) => { event.preventDefault(); confirmDialog(); }}
-            onKeyDown={(event) => { if (event.key === "Escape") cancelDialog(); }}
-          >
-            <h2 id="dialog-title">{dialog.title}</h2>
-            <p id="dialog-description">{dialog.description}</p>
-            {dialog.kind === "text" && (
-              <input
-                autoFocus
-                value={dialogValue}
-                onChange={(event) => setDialogValue(event.target.value)}
-                maxLength={80}
-              />
-            )}
-            {dialog.kind === "select" && (
-              <select autoFocus value={dialogValue} onChange={(event) => setDialogValue(event.target.value)}>
-                {dialog.options.map((option) => (
-                  <option value={option.value} key={option.value || "unfiled"}>{option.label}</option>
-                ))}
-              </select>
-            )}
-            <div className={styles.dialogActions}>
-              <button type="button" className={styles.dialogCancel} onClick={cancelDialog}>Cancelar</button>
-              <button
-                type="submit"
-                className={dialog.kind === "confirm" && dialog.destructive ? styles.dialogDanger : styles.dialogConfirm}
-                disabled={dialog.kind === "text" && !dialogValue.trim()}
-              >
-                {dialog.confirmLabel}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {dialog ? (
+        <ServerSafeAIDialog
+          dialog={dialog}
+          value={dialogValue}
+          onValueChange={setDialogValue}
+          onCancel={cancelDialog}
+          onConfirm={confirmDialog}
+        />
+      ) : null}
     </div>
   );
 }
