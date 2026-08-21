@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { emptyOwnerState, type OwnerState } from "./types";
 import { AI_LIMITS } from "./config";
+import type { StoredAttachment } from "./attachments";
 
 export class StorageLimitError extends Error {
   constructor() { super("STORAGE_LIMIT"); }
@@ -18,14 +19,65 @@ function getRedis() {
   return redis;
 }
 
-const stateKey = (owner: string) => `ssai:v1:owner:${owner}:state`;
-const lockKey = (owner: string) => `ssai:v1:owner:${owner}:lock`;
-
-export async function readOwnerState(owner: string): Promise<OwnerState> {
-  return (await getRedis().get<OwnerState>(stateKey(owner))) ?? emptyOwnerState();
+export function setRedisClientForTests(client: Redis | null) {
+  if (process.env.NODE_ENV === "production") throw new Error("TEST_STORAGE_CLIENT_NOT_ALLOWED");
+  redis = client;
 }
 
-export async function mutateOwnerState<T>(owner: string, mutation: (state: OwnerState) => T | Promise<T>): Promise<T> {
+const stateKey = (owner: string) => `ssai:v1:owner:${owner}:state`;
+const lockKey = (owner: string) => `ssai:v1:owner:${owner}:lock`;
+export const attachmentStorageKey = (owner: string, attachmentId: string) => `ssai:v1:owner:${owner}:attachment:${attachmentId}`;
+
+type AttachmentChanges = {
+  store(records: StoredAttachment[]): void;
+  delete(attachmentIds: string[]): void;
+};
+
+function pruneExpiredAttachments(state: OwnerState, now = Date.now()) {
+  const expiredIds = new Set<string>();
+  let changed = false;
+
+  state.conversations.forEach((conversation) => {
+    const current = conversation.attachments ?? [];
+    const active = current.filter((attachment) => {
+      const expiresAt = Date.parse(attachment.expires_at);
+      const keep = Number.isFinite(expiresAt) && expiresAt > now;
+      if (!keep) expiredIds.add(attachment.attachment_id);
+      return keep;
+    });
+    if (active.length !== current.length) {
+      conversation.attachments = active;
+      changed = true;
+    }
+
+    const activeIds = new Set(active.map((attachment) => attachment.attachment_id));
+    conversation.messages.forEach((message) => {
+      if (!message.attachments?.length) return;
+      const retained = message.attachments.filter((attachment) => activeIds.has(attachment.attachment_id));
+      if (retained.length === message.attachments.length) return;
+      if (retained.length) message.attachments = retained;
+      else delete message.attachments;
+      changed = true;
+    });
+  });
+
+  return { changed, expiredIds: [...expiredIds] };
+}
+
+async function readRawOwnerState(client: Redis, owner: string) {
+  return (await client.get<OwnerState>(stateKey(owner))) ?? emptyOwnerState();
+}
+
+export async function readOwnerState(owner: string): Promise<OwnerState> {
+  const state = await readRawOwnerState(getRedis(), owner);
+  if (!pruneExpiredAttachments(state).changed) return state;
+  return mutateOwnerState(owner, (fresh) => fresh);
+}
+
+export async function mutateOwnerState<T>(
+  owner: string,
+  mutation: (state: OwnerState, attachments: AttachmentChanges) => T | Promise<T>,
+): Promise<T> {
   const client = getRedis();
   const token = randomUUID();
   let acquired = false;
@@ -36,10 +88,43 @@ export async function mutateOwnerState<T>(owner: string, mutation: (state: Owner
   }
   if (!acquired) throw new Error("STORAGE_BUSY");
   try {
-    const state = await readOwnerState(owner);
-    const result = await mutation(state);
+    const state = await readRawOwnerState(client, owner);
+    const records = new Map<string, StoredAttachment>();
+    const attachmentIdsToDelete = new Set<string>();
+    const changes: AttachmentChanges = {
+      store(values) {
+        values.forEach((record) => {
+          attachmentIdsToDelete.delete(record.attachment_id);
+          records.set(record.attachment_id, record);
+        });
+      },
+      delete(attachmentIds) {
+        attachmentIds.forEach((attachmentId) => {
+          records.delete(attachmentId);
+          attachmentIdsToDelete.add(attachmentId);
+        });
+      },
+    };
+    const expired = pruneExpiredAttachments(state);
+    changes.delete(expired.expiredIds);
+    const result = await mutation(state, changes);
     if (JSON.stringify(state).length > AI_LIMITS.ownerStorageChars) throw new StorageLimitError();
-    await client.set(stateKey(owner), state);
+
+    if (records.size || attachmentIdsToDelete.size) {
+      const transaction = client.multi();
+      records.forEach((record) => {
+        const expiresAt = Date.parse(record.expires_at);
+        if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error("ATTACHMENT_EXPIRATION_INVALID");
+        transaction.set(attachmentStorageKey(owner, record.attachment_id), record, { pxat: expiresAt });
+      });
+      if (attachmentIdsToDelete.size) {
+        transaction.del(...[...attachmentIdsToDelete].map((attachmentId) => attachmentStorageKey(owner, attachmentId)));
+      }
+      transaction.set(stateKey(owner), state);
+      await transaction.exec();
+    } else {
+      await client.set(stateKey(owner), state);
+    }
     return result;
   } finally {
     await client.eval(
@@ -57,6 +142,22 @@ export async function consumeRateLimit(owner: string) {
   const count = await client.incr(key);
   if (count === 1) await client.expire(key, 90);
   return count;
+}
+
+export async function consumeAttachmentRateLimit(owner: string) {
+  const client = getRedis();
+  const minute = Math.floor(Date.now() / 60_000);
+  const key = `ssai:v1:attachment-rate:${owner}:${minute}`;
+  const count = await client.incr(key);
+  if (count === 1) await client.expire(key, 90);
+  return count;
+}
+
+export async function readAttachmentRecords(owner: string, attachmentIds: string[]) {
+  if (!attachmentIds.length) return [];
+  return getRedis().mget<Array<StoredAttachment | null>>(
+    ...attachmentIds.map((attachmentId) => attachmentStorageKey(owner, attachmentId)),
+  );
 }
 
 export async function acquireConversationLock(owner: string, conversationId: string) {

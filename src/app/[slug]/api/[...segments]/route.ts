@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { AI_LIMITS, assertRuntimeConfiguration, isConfiguredSlug } from "@/features/server-safe-ai/config";
+import {
+  AttachmentProblem, buildChatPrompt, extractAttachments, isStoredAttachment,
+  type StoredAttachment,
+} from "@/features/server-safe-ai/attachments";
 import { buildRecentHistory, canStoreTurn, normalizedTitle } from "@/features/server-safe-ai/core";
 import { runOpenHarness } from "@/features/server-safe-ai/sandbox";
 import {
@@ -8,8 +12,9 @@ import {
 } from "@/features/server-safe-ai/security";
 import {
   acquireConversationLock, acquireHarnessSlot, consumeRateLimit,
-  mutateOwnerState, readOwnerState, StorageLimitError,
+  consumeAttachmentRateLimit, mutateOwnerState, readAttachmentRecords, readOwnerState, StorageLimitError,
 } from "@/features/server-safe-ai/storage";
+import type { AttachmentMetadata, ChatAttachment } from "@/features/server-safe-ai/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +49,100 @@ async function body(request: NextRequest) {
   catch { throw new RequestProblem(400, "JSON inválido."); }
 }
 
+async function multipartBody(request: NextRequest) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!/^multipart\/form-data;\s*boundary=/i.test(contentType)) {
+    throw new RequestProblem(415, "Content-Type deve ser multipart/form-data.");
+  }
+  const declaredLength = Number(request.headers.get("content-length") ?? 0);
+  if (declaredLength > AI_LIMITS.attachmentMultipartBodyBytes) {
+    throw new RequestProblem(413, "O upload excede o limite de 4 MB por requisição.");
+  }
+  if (!request.body) throw new RequestProblem(400, "Upload vazio.");
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > AI_LIMITS.attachmentMultipartBodyBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new RequestProblem(413, "O upload excede o limite de 4 MB por requisição.");
+    }
+    chunks.push(value);
+  }
+  const raw = new Uint8Array(total);
+  let offset = 0;
+  chunks.forEach((chunk) => { raw.set(chunk, offset); offset += chunk.byteLength; });
+  try {
+    const parserRequest = new Request(request.url, {
+      method: "POST",
+      headers: { "content-type": contentType },
+      body: raw.buffer,
+    });
+    return await parserRequest.formData();
+  } catch {
+    throw new RequestProblem(400, "Upload multipart inválido.");
+  }
+}
+
+function chatAttachment(metadata: AttachmentMetadata): ChatAttachment {
+  return {
+    attachment_id: metadata.attachment_id,
+    name: metadata.name,
+    media_type: metadata.media_type,
+    size_bytes: metadata.size_bytes,
+  };
+}
+
+export async function persistAttachmentUpload(
+  owner: string,
+  conversationId: string,
+  files: File[],
+  now = Date.now(),
+) {
+  const extracted = await extractAttachments(files);
+  const createdAt = new Date(now).toISOString();
+  const expiresAt = new Date(now + AI_LIMITS.attachmentTtlSeconds * 1000).toISOString();
+  const metadata: AttachmentMetadata[] = extracted.map((item) => ({
+    attachment_id: randomUUID(),
+    name: item.name,
+    media_type: item.media_type,
+    size_bytes: item.size_bytes,
+    extracted_chars: item.text.length,
+    created_at: createdAt,
+    expires_at: expiresAt,
+  }));
+  const records: StoredAttachment[] = metadata.map((item, index) => ({
+    ...item,
+    conversation_id: conversationId,
+    text: extracted[index].text,
+  }));
+
+  await mutateOwnerState(owner, (state, attachments) => {
+    const conversation = state.conversations.find((item) => item.conversation_id === conversationId);
+    if (!conversation) throw new RequestProblem(404, "Conversa não encontrada.");
+    const activeMetadata = conversation.attachments ?? [];
+    if (activeMetadata.length + metadata.length > AI_LIMITS.maxAttachmentsPerConversation) {
+      throw new RequestProblem(413, `Cada conversa pode manter no máximo ${AI_LIMITS.maxAttachmentsPerConversation} documentos ativos.`);
+    }
+    const extractedChars = activeMetadata.reduce((total, item) => total + item.extracted_chars, 0)
+      + metadata.reduce((total, item) => total + item.extracted_chars, 0);
+    if (extractedChars > AI_LIMITS.conversationAttachmentChars) {
+      throw new RequestProblem(
+        413,
+        `Os documentos ativos excederiam o limite de ${AI_LIMITS.conversationAttachmentChars.toLocaleString("pt-BR")} caracteres por conversa. Nenhum conteúdo foi truncado.`,
+      );
+    }
+    conversation.attachments = [...activeMetadata, ...metadata];
+    conversation.updated_at = createdAt;
+    attachments.store(records);
+  });
+
+  return metadata;
+}
+
 function transferCookies(source: NextResponse, target: NextResponse | Response) {
   const value = source.headers.get("set-cookie");
   if (value) target.headers.set("set-cookie", value);
@@ -61,7 +160,18 @@ async function dispatch(request: NextRequest, context: Context) {
   if (mutation && !isSameOriginMutation(request)) return json({ ok: false, error: "Origem da solicitação não permitida." }, 403);
 
   if (path === "session" && request.method === "GET") {
-    const response = json({ ok: true });
+    const response = json({
+      ok: true,
+      attachment_limits: {
+        max_files_per_upload: AI_LIMITS.maxAttachmentsPerUpload,
+        max_files_per_conversation: AI_LIMITS.maxAttachmentsPerConversation,
+        max_file_bytes: AI_LIMITS.attachmentBytes,
+        max_request_bytes: AI_LIMITS.attachmentRequestBytes,
+        max_extracted_chars_per_file: AI_LIMITS.attachmentExtractedChars,
+        max_extracted_chars_per_conversation: AI_LIMITS.conversationAttachmentChars,
+        ttl_seconds: AI_LIMITS.attachmentTtlSeconds,
+      },
+    });
     ownerId(request, response, slug);
     return response;
   }
@@ -114,17 +224,38 @@ async function dispatch(request: NextRequest, context: Context) {
 
   if (path === "conversations" && request.method === "GET") {
     const state = await readOwnerState(owner);
-    const conversations = state.conversations.map(({ messages, ...conversation }) => ({ ...conversation, message_count: messages.length }));
+    const conversations = state.conversations.map(({ messages, attachments, ...conversation }) => ({
+      ...conversation,
+      message_count: messages.length,
+      attachment_count: attachments?.length ?? 0,
+    }));
     return transferCookies(cookieCarrier, json({ ok: true, conversations }));
   }
   if (path === "conversations" && request.method === "POST") {
     const conversation = await mutateOwnerState(owner, (state) => {
       if (state.conversations.length >= AI_LIMITS.maxConversations) throw new StorageLimitError();
       const now = new Date().toISOString();
-      const value = { conversation_id: randomUUID(), project_id: null, title: "Nova conversa", created_at: now, updated_at: now, messages: [] };
+      const value = { conversation_id: randomUUID(), project_id: null, title: "Nova conversa", created_at: now, updated_at: now, messages: [], attachments: [] };
       state.conversations.unshift(value); return value;
     });
     return transferCookies(cookieCarrier, json({ ok: true, conversation }, 201));
+  }
+
+  if (path === "attachments" && request.method === "POST") {
+    if (await consumeAttachmentRateLimit(owner) > AI_LIMITS.attachmentUploadsPerMinute) {
+      throw new RequestProblem(429, "Limite temporário de uploads atingido. Aguarde um minuto.");
+    }
+    const form = await multipartBody(request);
+    const conversationId = String(form.get("conversation_id") ?? "").trim();
+    if (!conversationId) throw new RequestProblem(400, "Conversa obrigatória para anexar documentos.");
+    const initialState = await readOwnerState(owner);
+    const initialConversation = initialState.conversations.find((conversation) => conversation.conversation_id === conversationId);
+    if (!initialConversation) throw new RequestProblem(404, "Conversa não encontrada.");
+    const values = form.getAll("files");
+    const files = values.filter((value): value is File => typeof value !== "string");
+    if (files.length !== values.length) throw new RequestProblem(400, "Upload contém campos de arquivo inválidos.");
+    const metadata = await persistAttachmentUpload(owner, conversationId, files);
+    return transferCookies(cookieCarrier, json({ ok: true, attachments: metadata }, 201));
   }
 
   const moveMatch = path.match(/^conversations\/([^/]+)\/project$/);
@@ -159,9 +290,10 @@ async function dispatch(request: NextRequest, context: Context) {
     return transferCookies(cookieCarrier, json({ ok: true, conversation }));
   }
   if (conversationMatch && request.method === "DELETE") {
-    await mutateOwnerState(owner, (state) => {
+    await mutateOwnerState(owner, (state, attachments) => {
       const index = state.conversations.findIndex((c) => c.conversation_id === conversationMatch[1]);
       if (index < 0) throw new RequestProblem(404, "Conversa não encontrada.");
+      attachments.delete((state.conversations[index].attachments ?? []).map((item) => item.attachment_id));
       state.conversations.splice(index, 1);
     });
     return transferCookies(cookieCarrier, json({ ok: true }));
@@ -171,19 +303,45 @@ async function dispatch(request: NextRequest, context: Context) {
     const data = await body(request);
     const message = String(data.message ?? "").trim();
     const conversationId = String(data.conversation_id ?? "").trim();
+    const attachmentIds = Array.isArray(data.attachment_ids)
+      ? [...new Set(data.attachment_ids.map((value) => String(value).trim()))]
+      : [];
     if (!message) throw new RequestProblem(400, "Mensagem vazia.");
     if (message.length > AI_LIMITS.messageChars) throw new RequestProblem(413, "Mensagem excede o limite permitido.");
+    if (attachmentIds.length > AI_LIMITS.maxAttachmentsPerUpload
+      || attachmentIds.some((value) => !/^[0-9a-f-]{36}$/i.test(value))) {
+      throw new RequestProblem(400, "Referências de anexos inválidas.");
+    }
     const state = await readOwnerState(owner);
     const active = state.conversations.find((c) => c.conversation_id === conversationId);
     if (!active) throw new RequestProblem(404, "Conversa não encontrada.");
     if (!canStoreTurn(active, message)) throw new RequestProblem(409, "Esta conversa atingiu o limite de armazenamento. Crie uma nova conversa.");
+    const now = Date.now();
+    const allMetadata = active.attachments ?? [];
+    const activeMetadata = allMetadata.filter((item) => Date.parse(item.expires_at) > now);
+    const storedValues = await readAttachmentRecords(owner, activeMetadata.map((item) => item.attachment_id));
+    const documents: StoredAttachment[] = [];
+    const unavailableNames = allMetadata
+      .filter((item) => Date.parse(item.expires_at) <= now)
+      .map((item) => item.name);
+    activeMetadata.forEach((metadata, index) => {
+      const value = storedValues[index];
+      if (isStoredAttachment(value, metadata.attachment_id, conversationId)) documents.push(value);
+      else unavailableNames.push(metadata.name);
+    });
+    if (attachmentIds.some((attachmentId) => !documents.some((document) => document.attachment_id === attachmentId))) {
+      throw new RequestProblem(410, "Um dos documentos anexados expirou ou não está mais disponível. Anexe-o novamente.");
+    }
+    const messageAttachments = activeMetadata
+      .filter((metadata) => attachmentIds.includes(metadata.attachment_id))
+      .map(chatAttachment);
+    const history = buildRecentHistory(active.messages);
+    const prompt = buildChatPrompt(history, message, documents, unavailableNames);
     const lock = await acquireConversationLock(owner, conversationId);
     if (!lock.ok) throw new RequestProblem(409, "Já existe uma solicitação em andamento nesta conversa.");
     if (await consumeRateLimit(owner) > AI_LIMITS.ratePerMinute) { await lock.release(); throw new RequestProblem(429, "Limite temporário de solicitações atingido."); }
     const harnessSlot = await acquireHarnessSlot(AI_LIMITS.maxConcurrency);
     if (!harnessSlot.ok) { await lock.release(); throw new RequestProblem(429, "O servidor está processando o limite de solicitações simultâneas."); }
-    const history = buildRecentHistory(active.messages);
-    const prompt = history ? `Histórico da conversa:\n${history}\n\nUsuário: ${message}\nAssistente:` : message;
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
@@ -195,7 +353,10 @@ async function dispatch(request: NextRequest, context: Context) {
             await mutateOwnerState(owner, (fresh) => {
               const conversation = fresh.conversations.find((c) => c.conversation_id === conversationId);
               if (!conversation) throw new Error("CONVERSATION_REMOVED");
-              conversation.messages.push({ role: "user", text: message }, { role: "assistant", text: answer });
+              conversation.messages.push(
+                { role: "user", text: message, ...(messageAttachments.length ? { attachments: messageAttachments } : {}) },
+                { role: "assistant", text: answer },
+              );
               if (conversation.title === "Nova conversa" || conversation.messages.length === 2) conversation.title = normalizedTitle(message).slice(0, 60);
               conversation.updated_at = now;
             });
@@ -217,6 +378,7 @@ async function handle(request: NextRequest, context: Context) {
   try { return await dispatch(request, context); }
   catch (error) {
     if (error instanceof RequestProblem) return json({ ok: false, error: error.message }, error.status);
+    if (error instanceof AttachmentProblem) return json({ ok: false, error: error.message, code: error.code }, error.status);
     if (error instanceof StorageLimitError) return json({ ok: false, error: "O limite de armazenamento desta sessão foi atingido." }, 409);
     return json({ ok: false, error: "Não foi possível concluir a solicitação." }, 500);
   }

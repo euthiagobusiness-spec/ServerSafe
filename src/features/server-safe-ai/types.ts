@@ -1,8 +1,27 @@
 export type ChatRole = "user" | "assistant";
 
+export type AttachmentMediaType =
+  | "application/pdf"
+  | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  | "text/plain";
+
+export type ChatAttachment = {
+  attachment_id: string;
+  name: string;
+  media_type: AttachmentMediaType;
+  size_bytes: number;
+};
+
+export type AttachmentMetadata = ChatAttachment & {
+  extracted_chars: number;
+  created_at: string;
+  expires_at: string;
+};
+
 export type ChatMessage = {
   role: ChatRole;
   text: string;
+  attachments?: ChatAttachment[];
 };
 
 export type Conversation = {
@@ -12,6 +31,7 @@ export type Conversation = {
   created_at: string;
   updated_at: string;
   messages: ChatMessage[];
+  attachments?: AttachmentMetadata[];
 };
 
 export type Project = {
