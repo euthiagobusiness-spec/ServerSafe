@@ -58,6 +58,7 @@ export async function runOpenHarness(
   const sandbox = await Sandbox.create({
     source: { type: "snapshot", snapshotId },
     timeout: 60_000,
+    persistent: false,
   });
 
   let buffer = "";
