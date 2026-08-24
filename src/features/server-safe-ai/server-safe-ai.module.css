@@ -25,6 +25,148 @@
   transition: grid-template-columns 160ms ease;
 }
 
+.authShell {
+  --auth-line: #34363c;
+  --auth-text: #f2f0ec;
+  --auth-muted: #a8a9ae;
+  width: 100%;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 0%, rgb(54 71 105 / 24%), transparent 42%),
+    #111214;
+  padding: 24px;
+  color: var(--auth-text);
+  color-scheme: dark;
+}
+
+.authCard {
+  width: min(100%, 430px);
+  border: 1px solid var(--auth-line);
+  border-radius: 18px;
+  background: rgb(28 30 33 / 96%);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 35%);
+  padding: 30px;
+}
+
+.authBrand {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #4c5d7d;
+  border-radius: 12px;
+  background: #27324a;
+  color: #e9eef9;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.authEyebrow {
+  margin: 18px 0 6px;
+  color: #9fb6e2;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.authCard h1 {
+  margin: 0 0 22px;
+  font-size: clamp(24px, 5vw, 32px);
+  line-height: 1.15;
+}
+
+.authCard > small {
+  display: block;
+  margin-top: 22px;
+  color: #85878e;
+  text-align: center;
+}
+
+.authForm,
+.authStatic {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.authForm p,
+.authStatic p {
+  margin: 0 0 8px;
+  color: var(--auth-muted);
+  line-height: 1.55;
+}
+
+.authForm label {
+  margin-top: 5px;
+  color: #d5d4d1;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.authForm input {
+  width: 100%;
+  height: 46px;
+  border: 1px solid #44474e;
+  border-radius: 10px;
+  background: #151619;
+  padding: 0 13px;
+  color: var(--auth-text);
+  font: inherit;
+}
+
+.authForm input:focus-visible,
+.authForm button:focus-visible,
+.authForm a:focus-visible,
+.authStatic button:focus-visible {
+  outline: 2px solid #7aa2ee;
+  outline-offset: 2px;
+}
+
+.authForm button,
+.authStatic button {
+  min-height: 44px;
+  margin-top: 8px;
+  border: 1px solid #477bdc;
+  border-radius: 10px;
+  background: #2f6fed;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.authForm button:disabled,
+.authStatic button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.authForm a {
+  margin-top: 6px;
+  color: #a9c3f5;
+  text-align: center;
+  text-decoration: none;
+}
+
+.authForm a:hover {
+  text-decoration: underline;
+}
+
+.authNotice {
+  margin: 17px 0 0;
+  border: 1px solid #555963;
+  border-radius: 10px;
+  background: #25272c;
+  padding: 11px 12px;
+  color: #d7d7d4;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .shellSidebarCollapsed {
   grid-template-columns: 64px minmax(0, 1fr);
 }
@@ -331,7 +473,7 @@
 .chatHeader {
   min-height: 58px;
   display: grid;
-  grid-template-columns: auto auto minmax(120px, 1fr) auto;
+  grid-template-columns: auto auto minmax(120px, 1fr) auto auto;
   align-items: center;
   gap: 12px;
   border-bottom: 1px solid var(--line);
@@ -397,6 +539,51 @@
   min-width: 24px;
   color: var(--muted-strong);
   font-size: 10px;
+}
+
+.authIdentity {
+  grid-column: 5;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.authIdentity > span {
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.authIdentity > button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  flex: none;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted-strong);
+  cursor: pointer;
+}
+
+.authIdentity > button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.authIdentity > button:focus-visible {
+  outline: 2px solid #7aa2ee;
+  outline-offset: 2px;
+}
+
+.authIdentity > button:disabled {
+  cursor: wait;
+  opacity: .6;
 }
 
 .switch {
@@ -1017,6 +1204,10 @@
   .permanenceControl > span {
     display: none;
   }
+
+  .authIdentity > span {
+    display: none;
+  }
 }
 
 @media (max-width: 760px) {
@@ -1091,7 +1282,7 @@
 
   .chatHeader {
     min-height: 54px;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     gap: 8px;
     padding: 8px 10px;
   }
@@ -1112,6 +1303,14 @@
 
   .permanenceControl {
     grid-column: 3;
+  }
+
+  .authIdentity {
+    grid-column: 4;
+  }
+
+  .authIdentity > span {
+    display: none;
   }
 
   .permanenceControl > span,
@@ -1174,6 +1373,17 @@
 }
 
 @media (max-width: 430px) {
+  .authShell {
+    align-items: start;
+    padding: 14px;
+  }
+
+  .authCard {
+    margin-top: max(12px, env(safe-area-inset-top));
+    border-radius: 15px;
+    padding: 24px 20px;
+  }
+
   .messageColumn {
     padding-inline: 10px;
   }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { performLogout } from "./auth";
 import { isAbortError } from "./chat-stream";
 import { ServerSafeAIComposer, type Notice, type PendingAttachment } from "./ServerSafeAIComposer";
 import { ServerSafeAIDialog, type DialogOption, type DialogState } from "./ServerSafeAIDialog";
@@ -57,13 +59,14 @@ function messageAttachment(metadata: AttachmentMetadata): ChatAttachment {
   };
 }
 
-export function ServerSafeAIClient({ basePath }: { basePath: string }) {
+export function ServerSafeAIClient({ basePath, userEmail }: { basePath: string; userEmail: string }) {
   const apiBase = `${basePath}/api`;
   const [projects, setProjects] = useState<Project[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [active, setActive] = useState<Conversation | null>(null);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
@@ -141,6 +144,28 @@ export function ServerSafeAIClient({ basePath }: { basePath: string }) {
 
   function showNotice(messageValue: string, kind: Notice["kind"] = "status") {
     setNotice({ message: messageValue, kind });
+  }
+
+  async function logout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    abortRef.current?.abort();
+    try {
+      const result = await performLogout(createSupabaseBrowserClient().auth);
+      if (!result.ok) {
+        showNotice(result.message ?? "Não foi possível encerrar a sessão.", "error");
+        setLoggingOut(false);
+        return;
+      }
+      setProjects([]);
+      setConversations([]);
+      setActive(null);
+      setPendingAttachments([]);
+      window.location.replace(basePath);
+    } catch {
+      showNotice("Não foi possível encerrar a sessão.", "error");
+      setLoggingOut(false);
+    }
   }
 
   function askText(title: string, description: string, initialValue = "", confirmLabel = "Salvar") {
@@ -544,9 +569,12 @@ export function ServerSafeAIClient({ basePath }: { basePath: string }) {
           hasActiveConversation={active !== null}
           permanenceEnabled={permanenceEnabled}
           disabled={sending}
+          userEmail={userEmail}
+          loggingOut={loggingOut}
           sidebarVisible={mobileViewport ? mobileSidebarOpen : !sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
           onTogglePermanence={() => { void updatePermanence(); }}
+          onLogout={() => { void logout(); }}
         />
 
         <ServerSafeAIMessageList active={active} sending={sending} bottomRef={bottomRef} />

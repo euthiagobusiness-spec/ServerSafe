@@ -1,4 +1,4 @@
-import { Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import styles from "./server-safe-ai.module.css";
 
 type ServerSafeAIHeaderProps = {
@@ -6,9 +6,12 @@ type ServerSafeAIHeaderProps = {
   hasActiveConversation: boolean;
   permanenceEnabled: boolean;
   disabled: boolean;
+  userEmail: string;
+  loggingOut: boolean;
   sidebarVisible: boolean;
   onToggleSidebar: () => void;
   onTogglePermanence: () => void;
+  onLogout: () => void;
 };
 
 export function ServerSafeAIHeader({
@@ -16,9 +19,12 @@ export function ServerSafeAIHeader({
   hasActiveConversation,
   permanenceEnabled,
   disabled,
+  userEmail,
+  loggingOut,
   sidebarVisible,
   onToggleSidebar,
   onTogglePermanence,
+  onLogout,
 }: ServerSafeAIHeaderProps) {
   return (
     <>
@@ -53,6 +59,18 @@ export function ServerSafeAIHeader({
             <i aria-hidden />
           </button>
           <b aria-hidden>{permanenceEnabled ? "ON" : "OFF"}</b>
+        </div>
+        <div className={styles.authIdentity}>
+          <span title={userEmail}>{userEmail}</span>
+          <button
+            type="button"
+            onClick={onLogout}
+            disabled={loggingOut}
+            aria-label="Sair da AI Teste"
+            title="Sair"
+          >
+            <LogOut size={17} aria-hidden />
+          </button>
         </div>
       </header>
 

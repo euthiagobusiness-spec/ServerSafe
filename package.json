@@ -17,6 +17,8 @@
     "sales:test": "node --test sales/tests/*.test.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "0.12.4",
+    "@supabase/supabase-js": "2.112.3",
     "@upstash/redis": "^1.38.2",
     "@vercel/sandbox": "^3.0.0",
     "fflate": "^0.8.3",

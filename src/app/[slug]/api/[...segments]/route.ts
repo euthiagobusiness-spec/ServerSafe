@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { resolveAuthenticatedIdentity } from "@/features/server-safe-ai/auth";
 import { AI_LIMITS, assertRuntimeConfiguration, isConfiguredSlug } from "@/features/server-safe-ai/config";
 import {
   AttachmentProblem, buildChatPrompt, extractAttachments, isStoredAttachment,
@@ -18,6 +19,8 @@ import {
   consumeAttachmentRateLimit, mutateOwnerState, readAttachmentRecords, readOwnerState, StorageLimitError,
 } from "@/features/server-safe-ai/storage";
 import type { AttachmentMetadata, ChatAttachment } from "@/features/server-safe-ai/types";
+import { getSupabasePublicConfig } from "@/lib/supabase/config";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -207,6 +210,17 @@ function transferCookies(source: NextResponse, target: NextResponse | Response) 
 async function dispatch(request: NextRequest, context: Context) {
   const { slug, segments } = await context.params;
   if (!isConfiguredSlug(slug)) return json({ ok: false, error: "Não encontrado." }, 404);
+  try { getSupabasePublicConfig(); }
+  catch { return json({ ok: false, error: "AI Teste ainda não está configurada para autenticação." }, 503); }
+
+  let identity;
+  try {
+    identity = await resolveAuthenticatedIdentity(await createSupabaseServerClient());
+  } catch {
+    return json({ ok: false, error: "Não foi possível validar a sessão." }, 503);
+  }
+  if (!identity) return json({ ok: false, error: "Autenticação necessária." }, 401);
+
   try { assertRuntimeConfiguration(); }
   catch { return json({ ok: false, error: "AI Teste ainda não está configurada." }, 503); }
 
