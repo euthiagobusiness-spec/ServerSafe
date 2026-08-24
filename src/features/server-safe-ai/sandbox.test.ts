@@ -6,6 +6,7 @@ import {
   OPENHARNESS_ALLOWED_TOOLS,
   OPENHARNESS_DENIED_TOOLS,
 } from "./sandbox";
+import type { ModelKey } from "./types";
 
 function optionValue(args: string[], option: string) {
   const index = args.indexOf(option);
@@ -15,7 +16,7 @@ function optionValue(args: string[], option: string) {
 
 test("aplica a instrução autoritativa separadamente em toda execução do OpenHarness", () => {
   const userPrompt = "Explique a Revolução Francesa sem anexos.";
-  const args = buildOpenHarnessCommandArgs(userPrompt, "test-api-key");
+  const args = buildOpenHarnessCommandArgs(userPrompt, "test-api-key", "opus-5");
   assert.equal(optionValue(args, "--system-prompt"), SERVERSAFE_AI_SYSTEM_PROMPT);
   assert.equal(optionValue(args, "-p"), userPrompt);
   assert.notEqual(optionValue(args, "--system-prompt"), optionValue(args, "-p"));
@@ -31,14 +32,14 @@ test("preserva pedidos jurídicos, técnicos, históricos, empresariais, cotidia
     "Explique por que o céu muda de cor ao entardecer.",
   ];
   for (const prompt of prompts) {
-    const args = buildOpenHarnessCommandArgs(prompt, "test-api-key");
+    const args = buildOpenHarnessCommandArgs(prompt, "test-api-key", "opus-5");
     assert.equal(optionValue(args, "-p"), prompt);
     assert.equal(optionValue(args, "--system-prompt"), SERVERSAFE_AI_SYSTEM_PROMPT);
   }
 });
 
 test("mantém plan mode e ferramentas perigosas explicitamente negadas", () => {
-  const args = buildOpenHarnessCommandArgs("Ajude com uma tarefa cotidiana.", "test-api-key");
+  const args = buildOpenHarnessCommandArgs("Ajude com uma tarefa cotidiana.", "test-api-key", "opus-5");
   assert.equal(optionValue(args, "--permission-mode"), "plan");
   assert.equal(args.includes("--dangerously-skip-permissions"), false);
   assert.equal(optionValue(args, "--allowed-tools"), OPENHARNESS_ALLOWED_TOOLS.join(","));
@@ -46,4 +47,21 @@ test("mantém plan mode e ferramentas perigosas explicitamente negadas", () => {
   for (const tool of ["bash", "read_file", "write_file", "edit_file", "agent", "send_message", "team_create"]) {
     assert.ok(OPENHARNESS_DENIED_TOOLS.includes(tool), `Ferramenta perigosa não negada: ${tool}`);
   }
+});
+
+test("resolve model_key no servidor e altera realmente o argumento --model", () => {
+  const mappings: Array<[ModelKey, string]> = [
+    ["haiku-4-5", "anthropic.claude-haiku-4-5"],
+    ["sonnet-5", "anthropic.claude-sonnet-5"],
+    ["opus-5", "anthropic.claude-opus-5"],
+  ];
+  for (const [modelKey, providerModelId] of mappings) {
+    const args = buildOpenHarnessCommandArgs("Teste.", "test-api-key", modelKey);
+    assert.equal(optionValue(args, "--model"), providerModelId);
+  }
+  assert.throws(() => buildOpenHarnessCommandArgs(
+    "Teste.",
+    "test-api-key",
+    "anthropic.claude-opus-5" as ModelKey,
+  ));
 });

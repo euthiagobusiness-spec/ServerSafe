@@ -1,16 +1,21 @@
 import { LogOut, Menu } from "lucide-react";
 import styles from "./server-safe-ai.module.css";
+import type { ModelKey, ModelMetadata } from "./types";
 
 type ServerSafeAIHeaderProps = {
   conversationTitle: string;
   hasActiveConversation: boolean;
   permanenceEnabled: boolean;
   disabled: boolean;
+  models: ModelMetadata[];
+  modelKey: ModelKey | null;
+  modelChanging: boolean;
   userEmail: string;
   loggingOut: boolean;
   sidebarVisible: boolean;
   onToggleSidebar: () => void;
   onTogglePermanence: () => void;
+  onModelChange: (modelKey: ModelKey) => void;
   onLogout: () => void;
 };
 
@@ -19,11 +24,15 @@ export function ServerSafeAIHeader({
   hasActiveConversation,
   permanenceEnabled,
   disabled,
+  models,
+  modelKey,
+  modelChanging,
   userEmail,
   loggingOut,
   sidebarVisible,
   onToggleSidebar,
   onTogglePermanence,
+  onModelChange,
   onLogout,
 }: ServerSafeAIHeaderProps) {
   return (
@@ -45,6 +54,20 @@ export function ServerSafeAIHeader({
           <span>AI Teste</span>
         </div>
         <strong title={conversationTitle}>{conversationTitle}</strong>
+        <label className={styles.modelControl}>
+          <span>Modelo</span>
+          <select
+            value={modelKey ?? ""}
+            onChange={(event) => onModelChange(event.target.value as ModelKey)}
+            disabled={disabled || modelChanging || !models.length}
+            aria-label="Modelo da conversa"
+          >
+            {!models.length ? <option value="">Indisponível</option> : null}
+            {models.map((model) => (
+              <option key={model.key} value={model.key}>{model.displayName}</option>
+            ))}
+          </select>
+        </label>
         <div className={styles.permanenceControl}>
           <span>Permanência</span>
           <button

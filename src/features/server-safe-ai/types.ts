@@ -1,5 +1,13 @@
 export type ChatRole = "user" | "assistant";
 
+export type ModelKey = "haiku-4-5" | "sonnet-5" | "opus-5";
+
+export type ModelMetadata = {
+  key: ModelKey;
+  displayName: string;
+  default: boolean;
+};
+
 export type AttachmentMediaType =
   | "application/pdf"
   | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -27,6 +35,7 @@ export type ChatMessage = {
 export type Conversation = {
   conversation_id: string;
   project_id: string | null;
+  model_key?: ModelKey;
   title: string;
   created_at: string;
   updated_at: string;

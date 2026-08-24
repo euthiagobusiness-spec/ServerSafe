@@ -10,7 +10,9 @@ import { ServerSafeAIHeader } from "./ServerSafeAIHeader";
 import { ServerSafeAIMessageList } from "./ServerSafeAIMessageList";
 import { ServerSafeAISidebar, type ConversationSummary } from "./ServerSafeAISidebar";
 import styles from "./server-safe-ai.module.css";
-import type { AttachmentMetadata, ChatAttachment, ChatMessage, Conversation, Project } from "./types";
+import type {
+  AttachmentMetadata, ChatAttachment, ChatMessage, Conversation, ModelKey, ModelMetadata, Project,
+} from "./types";
 
 const MAX_FILES_PER_UPLOAD = 3;
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
@@ -59,11 +61,22 @@ function messageAttachment(metadata: AttachmentMetadata): ChatAttachment {
   };
 }
 
+function isModelMetadata(value: unknown): value is ModelMetadata {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<ModelMetadata>;
+  return typeof candidate.key === "string"
+    && typeof candidate.displayName === "string"
+    && typeof candidate.default === "boolean";
+}
+
 export function ServerSafeAIClient({ basePath, userEmail }: { basePath: string; userEmail: string }) {
   const apiBase = `${basePath}/api`;
   const [projects, setProjects] = useState<Project[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [active, setActive] = useState<Conversation | null>(null);
+  const [models, setModels] = useState<ModelMetadata[]>([]);
+  const [draftModelKey, setDraftModelKey] = useState<ModelKey | null>(null);
+  const [changingModel, setChangingModel] = useState(false);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -107,7 +120,15 @@ export function ServerSafeAIClient({ basePath, userEmail }: { basePath: string; 
 
   useEffect(() => {
     request("session")
-      .then(() => refresh())
+      .then((session) => {
+        const receivedModels: unknown[] = Array.isArray(session.models) ? session.models : [];
+        const availableModels = receivedModels.filter(isModelMetadata);
+        const defaultModel = availableModels.find((model) => model.default);
+        if (!availableModels.length || !defaultModel) throw new Error("Modelos indisponíveis.");
+        setModels(availableModels);
+        setDraftModelKey(defaultModel.key);
+        return refresh();
+      })
       .catch((error) => setNotice({
         message: error instanceof Error ? error.message : "Falha ao carregar dados.",
         kind: "error",
@@ -141,6 +162,8 @@ export function ServerSafeAIClient({ basePath, userEmail }: { basePath: string; 
   }, [mobileSidebarOpen]);
 
   const permanenceEnabled = active?.permanence_enabled === true;
+  const defaultModelKey = models.find((model) => model.default)?.key ?? null;
+  const currentModelKey = active?.model_key ?? draftModelKey ?? defaultModelKey;
 
   function showNotice(messageValue: string, kind: Notice["kind"] = "status") {
     setNotice({ message: messageValue, kind });
@@ -232,6 +255,7 @@ export function ServerSafeAIClient({ basePath, userEmail }: { basePath: string; 
 
   function startNewConversation() {
     setActive(null);
+    setDraftModelKey(defaultModelKey);
     setMessage("");
     setPendingAttachments([]);
     setNotice(null);
@@ -288,10 +312,40 @@ export function ServerSafeAIClient({ basePath, userEmail }: { basePath: string; 
   }
 
   async function createConversation(open = true, signal?: AbortSignal) {
-    const data = await request("conversations", { method: "POST", body: "{}", signal });
+    const data = await request("conversations", {
+      method: "POST",
+      body: JSON.stringify(currentModelKey ? { model_key: currentModelKey } : {}),
+      signal,
+    });
     await refresh();
     if (open) setActive(data.conversation);
     return data.conversation as Conversation;
+  }
+
+  async function changeModel(modelKey: ModelKey) {
+    if (sending || changingModel || !models.some((model) => model.key === modelKey)) return;
+    if (!active) {
+      setDraftModelKey(modelKey);
+      return;
+    }
+
+    setChangingModel(true);
+    try {
+      const data = await request(`conversations/${active.conversation_id}/model`, {
+        method: "PATCH",
+        body: JSON.stringify({ model_key: modelKey }),
+      });
+      const conversation = data.conversation as Conversation;
+      setActive(conversation);
+      setConversations((items) => items.map((item) => item.conversation_id === conversation.conversation_id
+        ? { ...item, model_key: conversation.model_key, updated_at: conversation.updated_at }
+        : item));
+      showNotice(`Modelo alterado para ${models.find((model) => model.key === modelKey)?.displayName}.`, "success");
+    } catch (error) {
+      showNotice(error instanceof Error ? error.message : "Falha ao alterar modelo.", "error");
+    } finally {
+      setChangingModel(false);
+    }
   }
 
   async function createProject() {
@@ -569,11 +623,15 @@ export function ServerSafeAIClient({ basePath, userEmail }: { basePath: string; 
           hasActiveConversation={active !== null}
           permanenceEnabled={permanenceEnabled}
           disabled={sending}
+          models={models}
+          modelKey={currentModelKey}
+          modelChanging={changingModel}
           userEmail={userEmail}
           loggingOut={loggingOut}
           sidebarVisible={mobileViewport ? mobileSidebarOpen : !sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
           onTogglePermanence={() => { void updatePermanence(); }}
+          onModelChange={(modelKey) => { void changeModel(modelKey); }}
           onLogout={() => { void logout(); }}
         />
 

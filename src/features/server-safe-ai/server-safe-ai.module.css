@@ -473,7 +473,7 @@
 .chatHeader {
   min-height: 58px;
   display: grid;
-  grid-template-columns: auto auto minmax(120px, 1fr) auto auto;
+  grid-template-columns: auto auto minmax(120px, 1fr) auto auto auto;
   align-items: center;
   gap: 12px;
   border-bottom: 1px solid var(--line);
@@ -522,13 +522,40 @@
 }
 
 .permanenceControl {
-  grid-column: 4;
+  grid-column: 5;
   justify-self: end;
   display: flex;
   align-items: center;
   gap: 7px;
   color: var(--muted);
   font-size: 11px;
+}
+
+.modelControl {
+  grid-column: 4;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.modelControl select {
+  max-width: 164px;
+  height: 34px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text-soft);
+  padding: 0 28px 0 9px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.modelControl select:disabled {
+  cursor: wait;
+  opacity: .65;
 }
 
 .permanenceControl > span {
@@ -542,7 +569,7 @@
 }
 
 .authIdentity {
-  grid-column: 5;
+  grid-column: 6;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -1205,6 +1232,10 @@
     display: none;
   }
 
+  .modelControl > span {
+    display: none;
+  }
+
   .authIdentity > span {
     display: none;
   }
@@ -1282,7 +1313,7 @@
 
   .chatHeader {
     min-height: 54px;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) minmax(88px, 112px) auto auto;
     gap: 8px;
     padding: 8px 10px;
   }
@@ -1302,11 +1333,26 @@
   }
 
   .permanenceControl {
+    grid-column: 4;
+  }
+
+  .modelControl {
     grid-column: 3;
   }
 
+  .modelControl > span {
+    display: none;
+  }
+
+  .modelControl select {
+    width: 100%;
+    max-width: none;
+    padding-inline: 7px 22px;
+    font-size: 10px;
+  }
+
   .authIdentity {
-    grid-column: 4;
+    grid-column: 5;
   }
 
   .authIdentity > span {

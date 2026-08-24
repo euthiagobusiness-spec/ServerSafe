@@ -33,7 +33,6 @@ export const AI_LIMITS = {
   sandboxTimeoutMs: integer("OPENHARNESS_TIMEOUT_MS", 50_000, 55_000),
 } as const;
 
-export const AI_MODEL = "anthropic.claude-haiku-4-5";
 export const AI_REGION = "us-east-1";
 export const AI_BASE_URL = `https://bedrock-mantle.${AI_REGION}.api.aws/anthropic`;
 export const AI_SLUG_PATTERN = /^[A-Za-z0-9_-]{12,128}$/;

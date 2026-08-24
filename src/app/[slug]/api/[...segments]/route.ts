@@ -7,6 +7,10 @@ import {
   type StoredAttachment,
 } from "@/features/server-safe-ai/attachments";
 import { buildRecentHistory, canStoreTurn, normalizedTitle } from "@/features/server-safe-ai/core";
+import {
+  createConversationRecord, InvalidModelKeyError, PUBLIC_MODEL_METADATA, requireModelKey,
+  resolveConversationModelKey, setConversationModel,
+} from "@/features/server-safe-ai/models";
 import { runOpenHarness } from "@/features/server-safe-ai/sandbox";
 import {
   executeCancellableTurn, linkedAbortController, onceAsync, throwIfAborted,
@@ -240,6 +244,7 @@ async function dispatch(request: NextRequest, context: Context) {
         max_extracted_chars_per_conversation: AI_LIMITS.conversationAttachmentChars,
         ttl_seconds: AI_LIMITS.attachmentTtlSeconds,
       },
+      models: PUBLIC_MODEL_METADATA,
     });
     ownerId(request, response, slug);
     return response;
@@ -295,28 +300,39 @@ async function dispatch(request: NextRequest, context: Context) {
     const state = await readOwnerState(owner);
     const conversations = state.conversations.map(({ messages, attachments, ...conversation }) => ({
       ...conversation,
+      model_key: resolveConversationModelKey(conversation),
       message_count: messages.length,
       attachment_count: attachments?.length ?? 0,
     }));
     return transferCookies(cookieCarrier, json({ ok: true, conversations }));
   }
   if (path === "conversations" && request.method === "POST") {
+    const data = await body(request);
     const conversation = await mutateOwnerState(owner, (state) => {
       if (state.conversations.length >= AI_LIMITS.maxConversations) throw new StorageLimitError();
       const now = new Date().toISOString();
-      const value = {
-        conversation_id: randomUUID(),
-        project_id: null,
-        title: "Nova conversa",
-        created_at: now,
-        updated_at: now,
-        messages: [],
-        attachments: [],
-        permanence_enabled: false,
-      };
+      const value = createConversationRecord(randomUUID(), data.model_key, now);
       state.conversations.unshift(value); return value;
     });
     return transferCookies(cookieCarrier, json({ ok: true, conversation }, 201));
+  }
+
+  const modelMatch = path.match(/^conversations\/([^/]+)\/model$/);
+  if (modelMatch && request.method === "PATCH") {
+    const data = await body(request);
+    const modelKey = requireModelKey(data.model_key);
+    const lock = await acquireConversationLock(owner, modelMatch[1]);
+    if (!lock.ok) throw new RequestProblem(409, "Aguarde a geração atual terminar para trocar o modelo.");
+    try {
+      const conversation = await mutateOwnerState(owner, (state) => {
+        const value = state.conversations.find((item) => item.conversation_id === modelMatch[1]);
+        if (!value) throw new RequestProblem(404, "Conversa não encontrada.");
+        return setConversationModel(value, modelKey);
+      });
+      return transferCookies(cookieCarrier, json({ ok: true, conversation }));
+    } finally {
+      await lock.release();
+    }
   }
 
   if (path === "attachments" && request.method === "POST") {
@@ -368,7 +384,10 @@ async function dispatch(request: NextRequest, context: Context) {
     const state = await readOwnerState(owner);
     const conversation = state.conversations.find((c) => c.conversation_id === conversationMatch[1]);
     if (!conversation) throw new RequestProblem(404, "Conversa não encontrada.");
-    return transferCookies(cookieCarrier, json({ ok: true, conversation }));
+    return transferCookies(cookieCarrier, json({
+      ok: true,
+      conversation: { ...conversation, model_key: resolveConversationModelKey(conversation) },
+    }));
   }
   if (conversationMatch && request.method === "PATCH") {
     const data = await body(request);
@@ -407,6 +426,7 @@ async function dispatch(request: NextRequest, context: Context) {
     const state = await readOwnerState(owner);
     const active = state.conversations.find((c) => c.conversation_id === conversationId);
     if (!active) throw new RequestProblem(404, "Conversa não encontrada.");
+    resolveConversationModelKey(active);
     if (!canStoreTurn(active, message)) throw new RequestProblem(409, "Esta conversa atingiu o limite de armazenamento. Crie uma nova conversa.");
     const now = Date.now();
     const allMetadata = active.attachments ?? [];
@@ -437,6 +457,16 @@ async function dispatch(request: NextRequest, context: Context) {
     const prompt = buildChatPrompt(history, message, documents, unavailableNames);
     const lock = await acquireConversationLock(owner, conversationId);
     if (!lock.ok) throw new RequestProblem(409, "Já existe uma solicitação em andamento nesta conversa.");
+    let modelKey;
+    try {
+      const lockedState = await readOwnerState(owner);
+      const lockedConversation = lockedState.conversations.find((item) => item.conversation_id === conversationId);
+      if (!lockedConversation) throw new RequestProblem(404, "Conversa não encontrada.");
+      modelKey = resolveConversationModelKey(lockedConversation);
+    } catch (error) {
+      await lock.release();
+      throw error;
+    }
     if (await consumeRateLimit(owner) > AI_LIMITS.ratePerMinute) { await lock.release(); throw new RequestProblem(429, "Limite temporário de solicitações atingido."); }
     const harnessSlot = await acquireHarnessSlot(AI_LIMITS.maxConcurrency);
     if (!harnessSlot.ok) { await lock.release(); throw new RequestProblem(429, "O servidor está processando o limite de solicitações simultâneas."); }
@@ -469,6 +499,7 @@ async function dispatch(request: NextRequest, context: Context) {
           signal: execution.controller.signal,
           run: () => runOpenHarness(
             prompt,
+            modelKey,
             (event) => send(event.type, event.type === "delta" ? { text: event.text } : { label: event.label }),
             execution.controller.signal,
           ),
@@ -511,6 +542,7 @@ async function handle(request: NextRequest, context: Context) {
   try { return await dispatch(request, context); }
   catch (error) {
     if (error instanceof RequestProblem) return json({ ok: false, error: error.message }, error.status);
+    if (error instanceof InvalidModelKeyError) return json({ ok: false, error: "Modelo inválido." }, 400);
     if (error instanceof AttachmentProblem) return json({ ok: false, error: error.message, code: error.code }, error.status);
     if (error instanceof StorageLimitError) return json({ ok: false, error: "O limite de armazenamento desta sessão foi atingido." }, 409);
     return json({ ok: false, error: "Não foi possível concluir a solicitação." }, 500);

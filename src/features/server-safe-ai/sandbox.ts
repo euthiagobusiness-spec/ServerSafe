@@ -1,9 +1,11 @@
 import { Writable } from "node:stream";
 import { Sandbox } from "@vercel/sandbox";
-import { AI_BASE_URL, AI_LIMITS, AI_MODEL } from "./config";
+import { AI_BASE_URL, AI_LIMITS } from "./config";
 import { safeActivityLabel } from "./core";
 import { SERVERSAFE_AI_SYSTEM_PROMPT } from "./instructions";
 import { throwIfAborted } from "./chat-stream";
+import { providerModelIdForKey } from "./models";
+import type { ModelKey } from "./types";
 
 export const OPENHARNESS_ALLOWED_TOOLS = ["skill", "tool_search", "web_fetch", "web_search", "brief"];
 export const OPENHARNESS_DENIED_TOOLS = [
@@ -18,7 +20,8 @@ export type HarnessEvent =
   | { type: "activity"; label: string }
   | { type: "delta"; text: string };
 
-export function buildOpenHarnessCommandArgs(prompt: string, apiKey: string) {
+export function buildOpenHarnessCommandArgs(prompt: string, apiKey: string, modelKey: ModelKey) {
+  const providerModelId = providerModelIdForKey(modelKey);
   return [
     "-i",
     "HOME=/vercel/sandbox/home",
@@ -30,7 +33,7 @@ export function buildOpenHarnessCommandArgs(prompt: string, apiKey: string) {
     "/opt/openharness/bin/openharness",
     "-p", prompt,
     "--system-prompt", SERVERSAFE_AI_SYSTEM_PROMPT,
-    "--model", AI_MODEL,
+    "--model", providerModelId,
     "--base-url", AI_BASE_URL,
     "--api-key", apiKey,
     "--max-turns", String(AI_LIMITS.maxTurns),
@@ -43,6 +46,7 @@ export function buildOpenHarnessCommandArgs(prompt: string, apiKey: string) {
 
 export async function runOpenHarness(
   prompt: string,
+  modelKey: ModelKey,
   onEvent: (event: HarnessEvent) => void,
   signal?: AbortSignal,
 ) {
@@ -104,7 +108,7 @@ export async function runOpenHarness(
     onEvent({ type: "activity", label: "Iniciando ambiente isolado..." });
     const result = await sandbox.runCommand({
       cmd: "/usr/bin/env",
-      args: buildOpenHarnessCommandArgs(prompt, apiKey),
+      args: buildOpenHarnessCommandArgs(prompt, apiKey, modelKey),
       cwd: "/vercel/sandbox/workspace",
       stdout,
       stderr,
