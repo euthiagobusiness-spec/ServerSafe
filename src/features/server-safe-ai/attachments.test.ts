@@ -134,9 +134,20 @@ test("TXT com excesso de controles continua rejeitado", async () => {
   await assert.rejects(() => extractAttachment(file("controles.txt", "text/plain", "\u0001\u0002\u0003\u0004 texto")), expectsCode("BINARY_TXT"));
 });
 
-test("extrai PPTX textual mínimo", async () => {
+test("PPTX normal sem .bin extrai texto", async () => {
   const result = await extractAttachment(file("referencia.pptx", PPTX_TYPE, simplePptx({ 1: "Texto do slide" })));
   assert.equal(result.media_type, PPTX_TYPE);
+  assert.equal(result.text, "[Slide 1]\nTexto do slide");
+});
+
+test("aceita printerSettings conhecido sem processar o binário e extrai texto", async () => {
+  const result = await extractAttachment(file(
+    "printer-settings.pptx",
+    PPTX_TYPE,
+    simplePptx({ 1: "Texto do slide" }, {
+      "ppt/printerSettings/printerSettings1.bin": Uint8Array.from([0x00, 0xff, 0x01, 0xfe]),
+    }),
+  ));
   assert.equal(result.text, "[Slide 1]\nTexto do slide");
 });
 
@@ -157,10 +168,13 @@ test("PPTX inválido, ZIP falso e tipo PresentationML incorreto falham fechado",
   await assert.rejects(() => extractAttachment(file("macro-type.pptx", PPTX_TYPE, macroType)), expectsCode("INVALID_PPTX_TYPE"));
 });
 
-test("PPTX rejeita traversal, macro, OLE e embedding", async () => {
+test("PPTX rejeita traversal, macro, OLE, ActiveX, embedding e binário desconhecido", async () => {
   await assert.rejects(() => extractAttachment(file("traversal.pptx", PPTX_TYPE, simplePptx({ 1: "texto" }, { "../evil.xml": strToU8("x") }))), expectsCode("UNSAFE_PPTX_PATH"));
   await assert.rejects(() => extractAttachment(file("macro.pptx", PPTX_TYPE, simplePptx({ 1: "texto" }, { "ppt/vbaProject.bin": strToU8("x") }))), expectsCode("PPTX_ACTIVE_CONTENT"));
   await assert.rejects(() => extractAttachment(file("ole.pptx", PPTX_TYPE, simplePptx({ 1: "texto" }, { "ppt/embeddings/oleObject1.bin": strToU8("x") }))), expectsCode("PPTX_ACTIVE_CONTENT"));
+  await assert.rejects(() => extractAttachment(file("activex.pptx", PPTX_TYPE, simplePptx({ 1: "texto" }, { "ppt/activeX/activeX1.bin": strToU8("x") }))), expectsCode("PPTX_ACTIVE_CONTENT"));
+  await assert.rejects(() => extractAttachment(file("ole-objects.pptx", PPTX_TYPE, simplePptx({ 1: "texto" }, { "ppt/oleObjects/oleObject1.bin": strToU8("x") }))), expectsCode("PPTX_ACTIVE_CONTENT"));
+  await assert.rejects(() => extractAttachment(file("unknown-bin.pptx", PPTX_TYPE, simplePptx({ 1: "texto" }, { "ppt/qualquer-coisa/desconhecido.bin": strToU8("x") }))), expectsCode("PPTX_ACTIVE_CONTENT"));
 });
 
 test("PPTX zip bomb e conteúdo sem texto falham fechado", async () => {

@@ -8,6 +8,7 @@ import {
 
 const DOCX_TYPE = ATTACHMENT_MIME_TYPES.docx;
 const PPTX_TYPE = ATTACHMENT_MIME_TYPES.pptx;
+const SAFE_PPTX_PRINTER_SETTINGS_ENTRY = /^ppt\/printerSettings\/printerSettings\d+\.bin$/i;
 const ALLOWED_TYPES: Record<string, AttachmentMediaType> = {
   ".pdf": ATTACHMENT_MIME_TYPES.pdf,
   ".docx": DOCX_TYPE,
@@ -247,8 +248,11 @@ function safePptxEntry(info: UnzipFileInfo) {
     || (info.originalSize > 64 * 1024 && ratio > AI_LIMITS.maxDocxCompressionRatio)) {
     publicProblem(413, "PPTX_ZIP_BOMB", "O PPTX excede os limites seguros de descompactação.");
   }
+  const isSafePrinterSettingsEntry = SAFE_PPTX_PRINTER_SETTINGS_ENTRY.test(info.name);
+  const isUnknownBinary = /\.bin$/i.test(info.name) && !isSafePrinterSettingsEntry;
   if (/(^|\/)(?:embeddings|activeX|oleObjects?)(?:\/|$)/i.test(info.name)
-    || /(^|\/)(?:vbaProject\.bin|[^/]*\.bin)$/i.test(info.name)) {
+    || /(^|\/)vbaProject\.bin$/i.test(info.name)
+    || isUnknownBinary) {
     publicProblem(415, "PPTX_ACTIVE_CONTENT", "O PPTX contém macros ou conteúdo ativo não permitido.");
   }
 }
