@@ -2,6 +2,14 @@ export type ChatRole = "user" | "assistant";
 
 export type ModelKey = "haiku-4-5" | "sonnet-5" | "opus-5";
 
+export const ATTACHMENT_MIME_TYPES = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  txt: "text/plain",
+} as const;
+export const ATTACHMENT_EXTENSIONS: readonly string[] = [".pdf", ".docx", ".pptx", ".txt"];
+
 export type ModelMetadata = {
   key: ModelKey;
   displayName: string;
@@ -9,9 +17,7 @@ export type ModelMetadata = {
 };
 
 export type AttachmentMediaType =
-  | "application/pdf"
-  | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  | "text/plain";
+  typeof ATTACHMENT_MIME_TYPES[keyof typeof ATTACHMENT_MIME_TYPES];
 
 export type ChatAttachment = {
   attachment_id: string;

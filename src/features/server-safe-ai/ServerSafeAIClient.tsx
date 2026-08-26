@@ -13,11 +13,12 @@ import styles from "./server-safe-ai.module.css";
 import type {
   AttachmentMetadata, ChatAttachment, ChatMessage, Conversation, ModelKey, ModelMetadata, Project,
 } from "./types";
+import { ATTACHMENT_EXTENSIONS } from "./types";
 
 const MAX_FILES_PER_UPLOAD = 3;
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".txt"];
+const ALLOWED_EXTENSIONS = ATTACHMENT_EXTENSIONS;
 const SIDEBAR_PREFERENCE_KEY = "ssai-sidebar-collapsed:v1";
 const SIDEBAR_PREFERENCE_EVENT = "ssai-sidebar-preference";
 
@@ -270,7 +271,7 @@ export function ServerSafeAIClient({ basePath, userEmail }: { basePath: string; 
       const dot = file.name.lastIndexOf(".");
       const ext = dot > 0 ? file.name.slice(dot).toLowerCase() : "";
       if (!ALLOWED_EXTENSIONS.includes(ext)) {
-        showNotice(`${file.name}: formato não permitido. Use PDF, DOCX ou TXT.`, "error");
+        showNotice(`${file.name}: formato não permitido. Use PDF, DOCX, PPTX ou TXT.`, "error");
         continue;
       }
       if (file.size <= 0) {

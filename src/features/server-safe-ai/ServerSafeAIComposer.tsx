@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { ATTACHMENT_EXTENSIONS, ATTACHMENT_MIME_TYPES } from "./types";
 import styles from "./server-safe-ai.module.css";
 
 export type PendingAttachment = { id: string; file: File };
@@ -114,7 +115,7 @@ export function ServerSafeAIComposer({
           className={styles.fileInput}
           type="file"
           multiple
-          accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+          accept={`${ATTACHMENT_EXTENSIONS.join(",")},${Object.values(ATTACHMENT_MIME_TYPES).join(",")}`}
           onChange={handleFileChange}
           disabled={sending}
         />
@@ -146,7 +147,7 @@ export function ServerSafeAIComposer({
             type="button"
             className={styles.attachButton}
             aria-label="Anexar documentos"
-            title="Anexar PDF, DOCX ou TXT"
+            title="Anexar PDF, DOCX, PPTX ou TXT"
             onClick={() => fileInputRef.current?.click()}
             disabled={sending}
           >

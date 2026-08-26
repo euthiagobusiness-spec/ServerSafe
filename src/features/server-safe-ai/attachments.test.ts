@@ -9,6 +9,7 @@ import {
 import { attachmentStorageKey } from "./storage";
 
 const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const PPTX_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
 function file(name: string, type: string, data: Uint8Array | string) {
   const body = typeof data === "string" ? data : Uint8Array.from(data).buffer;
@@ -46,6 +47,30 @@ function simpleDocx(text: string, extra: Record<string, Uint8Array> = {}) {
   });
 }
 
+function simplePptx(slides: Record<number, string>, extra: Record<string, Uint8Array> = {}) {
+  const slideParts = Object.fromEntries(Object.entries(slides).map(([number, text]) => [
+    `ppt/slides/slide${number}.xml`,
+    strToU8(`<?xml version="1.0"?><p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><p:cSld><p:spTree><a:t>${text}</a:t></p:spTree></p:cSld></p:sld>`),
+  ]));
+  const overrides = Object.keys(slides).map((number) => `<Override PartName="/ppt/slides/slide${number}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join("");
+  return zipSync({
+    "[Content_Types].xml": strToU8(`<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>${overrides}</Types>`),
+    "ppt/presentation.xml": strToU8("<?xml version=\"1.0\"?><p:presentation xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"/>") ,
+    ...slideParts,
+    ...extra,
+  });
+}
+
+function utf16Be(value: string) {
+  const littleEndian = Buffer.from(value, "utf16le");
+  const bigEndian = Buffer.alloc(littleEndian.length);
+  for (let index = 0; index < littleEndian.length; index += 2) {
+    bigEndian[index] = littleEndian[index + 1];
+    bigEndian[index + 1] = littleEndian[index];
+  }
+  return Uint8Array.from([0xfe, 0xff, ...bigEndian]);
+}
+
 function expectsCode(code: string) {
   return (error: unknown) => error instanceof AttachmentProblem && error.code === code;
 }
@@ -65,6 +90,94 @@ test("extrai texto de DOCX válido sem executar conteúdo", async () => {
 test("extrai TXT UTF-8 válido", async () => {
   const result = await extractAttachment(file("notas.txt", "text/plain", "Linha jurídica válida."));
   assert.equal(result.text, "Linha jurídica válida.");
+});
+
+test("extrai TXT UTF-8 com BOM", async () => {
+  const bytes = Uint8Array.from([0xef, 0xbb, 0xbf, ...Buffer.from("Ação válida", "utf8")]);
+  const result = await extractAttachment(file("utf8-bom.txt", "text/plain", bytes));
+  assert.equal(result.text, "Ação válida");
+});
+
+test("extrai TXT Windows-1252 com português real", async () => {
+  const bytes = Uint8Array.from(Buffer.from("ç ã õ á é í ó ú", "latin1"));
+  const result = await extractAttachment(file("windows-1252.txt", "text/plain", bytes));
+  assert.equal(result.text, "ç ã õ á é í ó ú");
+});
+
+test("extrai TXT UTF-16LE com BOM", async () => {
+  const body = Buffer.from("Texto em UTF-16LE", "utf16le");
+  const bytes = Uint8Array.from([0xff, 0xfe, ...body]);
+  const result = await extractAttachment(file("utf16le.txt", "text/plain", bytes));
+  assert.equal(result.text, "Texto em UTF-16LE");
+});
+
+test("extrai TXT UTF-16BE com BOM", async () => {
+  const result = await extractAttachment(file("utf16be.txt", "text/plain", utf16Be("Texto em UTF-16BE")));
+  assert.equal(result.text, "Texto em UTF-16BE");
+});
+
+test("TXT com BOM UTF-8 inválido falha fechado", async () => {
+  const invalid = Uint8Array.from([0xef, 0xbb, 0xbf, 0xff, 0xff]);
+  await assert.rejects(() => extractAttachment(file("corrompido.txt", "text/plain", invalid)), expectsCode("INVALID_TXT_ENCODING"));
+});
+
+test("TXT binário continua rejeitado", async () => {
+  await assert.rejects(() => extractAttachment(file("binario.txt", "text/plain", Uint8Array.from([0x01, 0x02, 0x03, 0x04, 0x00]))), expectsCode("BINARY_TXT"));
+});
+
+test("TXT contendo PDF ou ZIP continua rejeitado", async () => {
+  await assert.rejects(() => extractAttachment(file("pdf.txt", "text/plain", simplePdf("não é TXT"))), expectsCode("MAGIC_MISMATCH"));
+  await assert.rejects(() => extractAttachment(file("zip.txt", "text/plain", zipSync({ "file.txt": strToU8("não é TXT") }))), expectsCode("MAGIC_MISMATCH"));
+});
+
+test("TXT com excesso de controles continua rejeitado", async () => {
+  await assert.rejects(() => extractAttachment(file("controles.txt", "text/plain", "\u0001\u0002\u0003\u0004 texto")), expectsCode("BINARY_TXT"));
+});
+
+test("extrai PPTX textual mínimo", async () => {
+  const result = await extractAttachment(file("referencia.pptx", PPTX_TYPE, simplePptx({ 1: "Texto do slide" })));
+  assert.equal(result.media_type, PPTX_TYPE);
+  assert.equal(result.text, "[Slide 1]\nTexto do slide");
+});
+
+test("PPTX ordena slides numericamente e preserva acentos", async () => {
+  const result = await extractAttachment(file("ordem.pptx", PPTX_TYPE, simplePptx({ 10: "Décimo", 2: "Segundo", 1: "Primeiro" })));
+  assert.equal(result.text, "[Slide 1]\nPrimeiro\n\n[Slide 2]\nSegundo\n\n[Slide 10]\nDécimo");
+});
+
+test("PPTX inválido, ZIP falso e tipo PresentationML incorreto falham fechado", async () => {
+  await assert.rejects(() => extractAttachment(file("invalido.pptx", PPTX_TYPE, "não é zip")), expectsCode("MAGIC_MISMATCH"));
+  await assert.rejects(() => extractAttachment(file("mime-invalido.pptx", "application/octet-stream", simplePptx({ 1: "texto" }))), expectsCode("MIME_MISMATCH"));
+  await assert.rejects(() => extractAttachment(file("zip-falso.pptx", PPTX_TYPE, Uint8Array.from([0x50, 0x4b, 0x03, 0x04]))), expectsCode("INVALID_PPTX"));
+  const macroType = zipSync({
+    "[Content_Types].xml": strToU8("<Types><Override PartName=\"/ppt/presentation.xml\" ContentType=\"application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml\"/></Types>"),
+    "ppt/presentation.xml": strToU8("<presentation/>") ,
+    "ppt/slides/slide1.xml": strToU8("<a:t>texto</a:t>"),
+  });
+  await assert.rejects(() => extractAttachment(file("macro-type.pptx", PPTX_TYPE, macroType)), expectsCode("INVALID_PPTX_TYPE"));
+});
+
+test("PPTX rejeita traversal, macro, OLE e embedding", async () => {
+  await assert.rejects(() => extractAttachment(file("traversal.pptx", PPTX_TYPE, simplePptx({ 1: "texto" }, { "../evil.xml": strToU8("x") }))), expectsCode("UNSAFE_PPTX_PATH"));
+  await assert.rejects(() => extractAttachment(file("macro.pptx", PPTX_TYPE, simplePptx({ 1: "texto" }, { "ppt/vbaProject.bin": strToU8("x") }))), expectsCode("PPTX_ACTIVE_CONTENT"));
+  await assert.rejects(() => extractAttachment(file("ole.pptx", PPTX_TYPE, simplePptx({ 1: "texto" }, { "ppt/embeddings/oleObject1.bin": strToU8("x") }))), expectsCode("PPTX_ACTIVE_CONTENT"));
+});
+
+test("PPTX zip bomb e conteúdo sem texto falham fechado", async () => {
+  const bomb = simplePptx({ 1: "texto" }, { "ppt/media/large.txt": strToU8("x".repeat(AI_LIMITS.maxDocxEntryBytes + 1)) });
+  await assert.rejects(() => extractAttachment(file("bomba.pptx", PPTX_TYPE, bomb)), expectsCode("PPTX_ZIP_BOMB"));
+  const noText = zipSync({
+    "[Content_Types].xml": strToU8("<Types><Override PartName=\"/ppt/presentation.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml\"/></Types>"),
+    "ppt/presentation.xml": strToU8("<p:presentation xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"/>") ,
+    "ppt/slides/slide1.xml": strToU8("<p:sld xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"></p:sld>") ,
+  });
+  await assert.rejects(() => extractAttachment(file("sem-texto.pptx", PPTX_TYPE, noText)), expectsCode("NO_TEXT"));
+});
+
+test("PPTX respeita limite de caracteres extraídos", async () => {
+  const largeText = Array.from({ length: 20_000 }, (_, index) => `texto-${index.toString(36)} `).join("");
+  const oversized = simplePptx({ 1: largeText });
+  await assert.rejects(() => extractAttachment(file("grande.pptx", PPTX_TYPE, oversized)), expectsCode("EXTRACTED_TEXT_LIMIT"));
 });
 
 test("rejeita tipo não permitido", async () => {
