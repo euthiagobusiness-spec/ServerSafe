@@ -16,8 +16,9 @@ import {
   executeCancellableTurn, linkedAbortController, onceAsync, throwIfAborted,
 } from "@/features/server-safe-ai/chat-stream";
 import {
-  isSameOriginMutation, ownerId,
+  isSameOriginMutation,
 } from "@/features/server-safe-ai/security";
+import type { CanonicalOwnerId } from "@/features/server-safe-ai/security";
 import {
   acquireConversationLock, acquireHarnessSlot, consumeRateLimit,
   consumeAttachmentRateLimit, mutateOwnerState, readAttachmentRecords, readOwnerState, StorageLimitError,
@@ -107,7 +108,7 @@ function chatAttachment(metadata: AttachmentMetadata): ChatAttachment {
 }
 
 export async function persistAttachmentUpload(
-  owner: string,
+  owner: CanonicalOwnerId,
   conversationId: string,
   files: File[],
   now = Date.now(),
@@ -158,7 +159,7 @@ export async function persistAttachmentUpload(
 }
 
 export async function setConversationPermanence(
-  owner: string,
+  owner: CanonicalOwnerId,
   conversationId: string,
   enabled: boolean,
   now = Date.now(),
@@ -205,12 +206,6 @@ export async function setConversationPermanence(
   });
 }
 
-function transferCookies(source: NextResponse, target: NextResponse | Response) {
-  const value = source.headers.get("set-cookie");
-  if (value) target.headers.set("set-cookie", value);
-  return target;
-}
-
 async function dispatch(request: NextRequest, context: Context) {
   const { slug, segments } = await context.params;
   if (!isConfiguredSlug(slug)) return json({ ok: false, error: "Não encontrado." }, 404);
@@ -246,17 +241,16 @@ async function dispatch(request: NextRequest, context: Context) {
       },
       models: PUBLIC_MODEL_METADATA,
     });
-    ownerId(request, response, slug);
     return response;
   }
 
-  const cookieCarrier = json({});
-  const owner = ownerId(request, cookieCarrier, slug);
+  // Authenticated identity is the only owner source for all v2 state.
+  const owner = identity.id;
 
   if (path === "projects" && request.method === "GET") {
     const state = await readOwnerState(owner);
     const projects = state.projects.map((project) => ({ ...project, conversation_count: state.conversations.filter((c) => c.project_id === project.project_id).length }));
-    return transferCookies(cookieCarrier, json({ ok: true, projects }));
+    return json({ ok: true, projects });
   }
   if (path === "projects" && request.method === "POST") {
     const data = await body(request);
@@ -269,7 +263,7 @@ async function dispatch(request: NextRequest, context: Context) {
       state.projects.unshift(value);
       return value;
     });
-    return transferCookies(cookieCarrier, json({ ok: true, project }, 201));
+    return json({ ok: true, project }, 201);
   }
 
   const projectMatch = path.match(/^projects\/([^/]+)$/);
@@ -282,7 +276,7 @@ async function dispatch(request: NextRequest, context: Context) {
       if (!value) throw new RequestProblem(404, "Projeto não encontrado.");
       value.name = name; value.updated_at = new Date().toISOString(); return value;
     });
-    return transferCookies(cookieCarrier, json({ ok: true, project }));
+    return json({ ok: true, project });
   }
   if (projectMatch && request.method === "DELETE") {
     const moved = await mutateOwnerState(owner, (state) => {
@@ -293,7 +287,7 @@ async function dispatch(request: NextRequest, context: Context) {
       state.conversations.forEach((conversation) => { if (conversation.project_id === projectMatch[1]) { conversation.project_id = null; count += 1; } });
       return count;
     });
-    return transferCookies(cookieCarrier, json({ ok: true, moved_conversations: moved }));
+    return json({ ok: true, moved_conversations: moved });
   }
 
   if (path === "conversations" && request.method === "GET") {
@@ -304,7 +298,7 @@ async function dispatch(request: NextRequest, context: Context) {
       message_count: messages.length,
       attachment_count: attachments?.length ?? 0,
     }));
-    return transferCookies(cookieCarrier, json({ ok: true, conversations }));
+    return json({ ok: true, conversations });
   }
   if (path === "conversations" && request.method === "POST") {
     const data = await body(request);
@@ -314,7 +308,7 @@ async function dispatch(request: NextRequest, context: Context) {
       const value = createConversationRecord(randomUUID(), data.model_key, now);
       state.conversations.unshift(value); return value;
     });
-    return transferCookies(cookieCarrier, json({ ok: true, conversation }, 201));
+    return json({ ok: true, conversation }, 201);
   }
 
   const modelMatch = path.match(/^conversations\/([^/]+)\/model$/);
@@ -329,7 +323,7 @@ async function dispatch(request: NextRequest, context: Context) {
         if (!value) throw new RequestProblem(404, "Conversa não encontrada.");
         return setConversationModel(value, modelKey);
       });
-      return transferCookies(cookieCarrier, json({ ok: true, conversation }));
+      return json({ ok: true, conversation });
     } finally {
       await lock.release();
     }
@@ -349,7 +343,7 @@ async function dispatch(request: NextRequest, context: Context) {
     const files = values.filter((value): value is File => typeof value !== "string");
     if (files.length !== values.length) throw new RequestProblem(400, "Upload contém campos de arquivo inválidos.");
     const metadata = await persistAttachmentUpload(owner, conversationId, files);
-    return transferCookies(cookieCarrier, json({ ok: true, attachments: metadata }, 201));
+    return json({ ok: true, attachments: metadata }, 201);
   }
 
   const moveMatch = path.match(/^conversations\/([^/]+)\/project$/);
@@ -362,7 +356,7 @@ async function dispatch(request: NextRequest, context: Context) {
       if (projectId && !state.projects.some((p) => p.project_id === projectId)) throw new RequestProblem(404, "Projeto não encontrado.");
       value.project_id = projectId; value.updated_at = new Date().toISOString(); return value;
     });
-    return transferCookies(cookieCarrier, json({ ok: true, conversation }));
+    return json({ ok: true, conversation });
   }
 
   const permanenceMatch = path.match(/^conversations\/([^/]+)\/permanence$/);
@@ -376,7 +370,7 @@ async function dispatch(request: NextRequest, context: Context) {
       permanenceMatch[1],
       data.enabled,
     );
-    return transferCookies(cookieCarrier, json({ ok: true, conversation }));
+    return json({ ok: true, conversation });
   }
 
   const conversationMatch = path.match(/^conversations\/([^/]+)$/);
@@ -384,10 +378,10 @@ async function dispatch(request: NextRequest, context: Context) {
     const state = await readOwnerState(owner);
     const conversation = state.conversations.find((c) => c.conversation_id === conversationMatch[1]);
     if (!conversation) throw new RequestProblem(404, "Conversa não encontrada.");
-    return transferCookies(cookieCarrier, json({
+    return json({
       ok: true,
       conversation: { ...conversation, model_key: resolveConversationModelKey(conversation) },
-    }));
+    });
   }
   if (conversationMatch && request.method === "PATCH") {
     const data = await body(request);
@@ -398,7 +392,7 @@ async function dispatch(request: NextRequest, context: Context) {
       if (!value) throw new RequestProblem(404, "Conversa não encontrada.");
       value.title = title; value.updated_at = new Date().toISOString(); return value;
     });
-    return transferCookies(cookieCarrier, json({ ok: true, conversation }));
+    return json({ ok: true, conversation });
   }
   if (conversationMatch && request.method === "DELETE") {
     await mutateOwnerState(owner, (state, attachments) => {
@@ -407,7 +401,7 @@ async function dispatch(request: NextRequest, context: Context) {
       attachments.delete((state.conversations[index].attachments ?? []).map((item) => item.attachment_id));
       state.conversations.splice(index, 1);
     });
-    return transferCookies(cookieCarrier, json({ ok: true }));
+    return json({ ok: true });
   }
 
   if (path === "chat/stream" && request.method === "POST") {
@@ -532,7 +526,7 @@ async function dispatch(request: NextRequest, context: Context) {
       },
     });
     const response = new Response(stream, { headers: { ...secureHeaders, "Content-Type": "text/event-stream; charset=utf-8", "X-Accel-Buffering": "no" } });
-    return transferCookies(cookieCarrier, response);
+    return response;
   }
 
   return json({ ok: false, error: "Não encontrado." }, 404);

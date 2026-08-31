@@ -1,9 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { canonicalOwnerId, type CanonicalOwnerId } from "./security";
 
-export type AuthIdentity = {
-  id: string;
+export type AuthenticatedIdentity = {
+  id: CanonicalOwnerId;
   email: string;
 };
+export type AuthIdentity = AuthenticatedIdentity;
 
 export type PublicAuthResult = {
   ok: boolean;
@@ -21,7 +23,6 @@ type BrowserAuthApi = {
   updateUser(attributes: { password: string }): Promise<{ error: AuthErrorLike | null }>;
 };
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function normalizePrivateBasePath(value: string) {
@@ -50,22 +51,31 @@ export function buildRecoveryRedirect(origin: string, basePath: string) {
 
 export async function resolveAuthenticatedIdentity(
   supabase: Pick<SupabaseClient, "auth">,
-): Promise<AuthIdentity | null> {
+): Promise<AuthenticatedIdentity | null> {
   const { data, error } = await supabase.auth.getClaims();
   const claims = data?.claims;
   if (error || !claims || claims.is_anonymous === true) return null;
 
-  const id = typeof claims.sub === "string" ? claims.sub : "";
+  const rawId = typeof claims.sub === "string" ? claims.sub : "";
   const email = typeof claims.email === "string" ? claims.email.trim() : "";
-  if (!UUID_PATTERN.test(id) || !EMAIL_PATTERN.test(email)) return null;
-  return { id, email };
+  if (!EMAIL_PATTERN.test(email)) return null;
+  try {
+    return { id: canonicalOwnerId(rawId), email };
+  } catch {
+    return null;
+  }
 }
 
 export async function ensureOwnProfile(supabase: SupabaseClient, userId: string) {
-  if (!UUID_PATTERN.test(userId)) return false;
+  let canonicalId: string;
+  try {
+    canonicalId = canonicalOwnerId(userId);
+  } catch {
+    return false;
+  }
   const { error } = await supabase
     .from("profiles")
-    .upsert({ id: userId }, { onConflict: "id", ignoreDuplicates: true });
+    .upsert({ id: canonicalId }, { onConflict: "id", ignoreDuplicates: true });
   return !error;
 }
 

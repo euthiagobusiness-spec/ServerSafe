@@ -41,6 +41,15 @@ test("sessão autenticada usa sub verificado como auth.uid", async () => {
   assert.deepEqual(identity, { id: userId, email: "pessoa@example.com" });
 });
 
+test("claims.sub válido é normalizado para o owner canônico", async () => {
+  const identity = await resolveAuthenticatedIdentity(claimsClient({
+    sub: `  ${userId.toUpperCase()}  `,
+    email: "pessoa@example.com",
+    is_anonymous: false,
+  }));
+  assert.deepEqual(identity, { id: userId, email: "pessoa@example.com" });
+});
+
 test("sessão anônima ou claims malformadas não autorizam", async () => {
   assert.equal(await resolveAuthenticatedIdentity(claimsClient({ sub: userId, email: "pessoa@example.com", is_anonymous: true })), null);
   assert.equal(await resolveAuthenticatedIdentity(claimsClient({ sub: "cliente", email: "pessoa@example.com" })), null);

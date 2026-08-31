@@ -4,6 +4,7 @@ import { emptyOwnerState, type OwnerState } from "./types";
 import { AI_LIMITS } from "./config";
 import type { StoredAttachment } from "./attachments";
 import { throwIfAborted } from "./chat-stream";
+import { canonicalOwnerId, type CanonicalOwnerId } from "./security";
 
 export class StorageLimitError extends Error {
   constructor() { super("STORAGE_LIMIT"); }
@@ -25,9 +26,34 @@ export function setRedisClientForTests(client: Redis | null) {
   redis = client;
 }
 
-const stateKey = (owner: string) => `ssai:v1:owner:${owner}:state`;
-const lockKey = (owner: string) => `ssai:v1:owner:${owner}:lock`;
-export const attachmentStorageKey = (owner: string, attachmentId: string) => `ssai:v1:owner:${owner}:attachment:${attachmentId}`;
+const ownerV2Prefix = (owner: CanonicalOwnerId) => `ssai:v2:user:${canonicalOwnerId(owner)}`;
+const safeKeySegment = (value: string, label: string) => {
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(value)) throw new Error(`${label}_INVALID`);
+  return value;
+};
+const minuteKeySegment = (minute: number) => {
+  if (!Number.isSafeInteger(minute) || minute < 0) throw new Error("RATE_WINDOW_INVALID");
+  return String(minute);
+};
+
+/** Versioned v2 builders. They only derive from the validated auth UUID. */
+export const ownerStateKeyV2 = (owner: CanonicalOwnerId) => `${ownerV2Prefix(owner)}:state`;
+export const ownerMutationLockKeyV2 = (owner: CanonicalOwnerId) => `${ownerV2Prefix(owner)}:lock`;
+export const attachmentStorageKeyV2 = (owner: CanonicalOwnerId, attachmentId: string) => (
+  `${ownerV2Prefix(owner)}:attachment:${safeKeySegment(attachmentId, "ATTACHMENT_ID")}`
+);
+export const conversationChatLockKeyV2 = (owner: CanonicalOwnerId, conversationId: string) => (
+  `${ownerV2Prefix(owner)}:chat-lock:${safeKeySegment(conversationId, "CONVERSATION_ID")}`
+);
+export const ownerRateLimitKeyV2 = (owner: CanonicalOwnerId, minute: number) => (
+  `${ownerV2Prefix(owner)}:rate:${minuteKeySegment(minute)}`
+);
+export const ownerAttachmentRateLimitKeyV2 = (owner: CanonicalOwnerId, minute: number) => (
+  `${ownerV2Prefix(owner)}:attachment-rate:${minuteKeySegment(minute)}`
+);
+
+/** The harness slot pool is global and must not be duplicated per owner/version. */
+export const harnessSlotsKey = "ssai:v1:harness-slots";
 
 type AttachmentChanges = {
   store(records: StoredAttachment[]): void;
@@ -66,18 +92,18 @@ function pruneExpiredAttachments(state: OwnerState, now = Date.now()) {
   return { changed, expiredIds: [...expiredIds] };
 }
 
-async function readRawOwnerState(client: Redis, owner: string) {
-  return (await client.get<OwnerState>(stateKey(owner))) ?? emptyOwnerState();
+async function readRawOwnerState(client: Redis, owner: CanonicalOwnerId) {
+  return (await client.get<OwnerState>(ownerStateKeyV2(owner))) ?? emptyOwnerState();
 }
 
-export async function readOwnerState(owner: string): Promise<OwnerState> {
+export async function readOwnerState(owner: CanonicalOwnerId): Promise<OwnerState> {
   const state = await readRawOwnerState(getRedis(), owner);
   if (!pruneExpiredAttachments(state).changed) return state;
   return mutateOwnerState(owner, (fresh) => fresh);
 }
 
 export async function mutateOwnerState<T>(
-  owner: string,
+  owner: CanonicalOwnerId,
   mutation: (state: OwnerState, attachments: AttachmentChanges) => T | Promise<T>,
   options: { signal?: AbortSignal } = {},
 ): Promise<T> {
@@ -86,7 +112,7 @@ export async function mutateOwnerState<T>(
   let acquired = false;
   throwIfAborted(options.signal);
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    acquired = Boolean(await client.set(lockKey(owner), token, { nx: true, ex: 8 }));
+    acquired = Boolean(await client.set(ownerMutationLockKeyV2(owner), token, { nx: true, ex: 8 }));
     if (acquired) break;
     await new Promise((resolve) => setTimeout(resolve, 40 + attempt * 25));
     throwIfAborted(options.signal);
@@ -120,59 +146,59 @@ export async function mutateOwnerState<T>(
       const transaction = client.multi();
       records.forEach((record) => {
         if (record.expires_at === null) {
-          transaction.set(attachmentStorageKey(owner, record.attachment_id), record);
+          transaction.set(attachmentStorageKeyV2(owner, record.attachment_id), record);
           return;
         }
         const expiresAt = Date.parse(record.expires_at);
         if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error("ATTACHMENT_EXPIRATION_INVALID");
-        transaction.set(attachmentStorageKey(owner, record.attachment_id), record, { pxat: expiresAt });
+        transaction.set(attachmentStorageKeyV2(owner, record.attachment_id), record, { pxat: expiresAt });
       });
       if (attachmentIdsToDelete.size) {
-        transaction.del(...[...attachmentIdsToDelete].map((attachmentId) => attachmentStorageKey(owner, attachmentId)));
+        transaction.del(...[...attachmentIdsToDelete].map((attachmentId) => attachmentStorageKeyV2(owner, attachmentId)));
       }
-      transaction.set(stateKey(owner), state);
+      transaction.set(ownerStateKeyV2(owner), state);
       await transaction.exec();
     } else {
-      await client.set(stateKey(owner), state);
+      await client.set(ownerStateKeyV2(owner), state);
     }
     return result;
   } finally {
     await client.eval(
       "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-      [lockKey(owner)],
+      [ownerMutationLockKeyV2(owner)],
       [token],
     ).catch(() => undefined);
   }
 }
 
-export async function consumeRateLimit(owner: string) {
+export async function consumeRateLimit(owner: CanonicalOwnerId) {
   const client = getRedis();
   const minute = Math.floor(Date.now() / 60_000);
-  const key = `ssai:v1:rate:${owner}:${minute}`;
+  const key = ownerRateLimitKeyV2(owner, minute);
   const count = await client.incr(key);
   if (count === 1) await client.expire(key, 90);
   return count;
 }
 
-export async function consumeAttachmentRateLimit(owner: string) {
+export async function consumeAttachmentRateLimit(owner: CanonicalOwnerId) {
   const client = getRedis();
   const minute = Math.floor(Date.now() / 60_000);
-  const key = `ssai:v1:attachment-rate:${owner}:${minute}`;
+  const key = ownerAttachmentRateLimitKeyV2(owner, minute);
   const count = await client.incr(key);
   if (count === 1) await client.expire(key, 90);
   return count;
 }
 
-export async function readAttachmentRecords(owner: string, attachmentIds: string[]) {
+export async function readAttachmentRecords(owner: CanonicalOwnerId, attachmentIds: string[]) {
   if (!attachmentIds.length) return [];
   return getRedis().mget<Array<StoredAttachment | null>>(
-    ...attachmentIds.map((attachmentId) => attachmentStorageKey(owner, attachmentId)),
+    ...attachmentIds.map((attachmentId) => attachmentStorageKeyV2(owner, attachmentId)),
   );
 }
 
-export async function acquireConversationLock(owner: string, conversationId: string) {
+export async function acquireConversationLock(owner: CanonicalOwnerId, conversationId: string) {
   const client = getRedis();
-  const key = `ssai:v1:chat-lock:${owner}:${conversationId}`;
+  const key = conversationChatLockKeyV2(owner, conversationId);
   const token = randomUUID();
   const ok = Boolean(await client.set(key, token, { nx: true, ex: 70 }));
   return {
@@ -189,7 +215,7 @@ export async function acquireConversationLock(owner: string, conversationId: str
 
 export async function acquireHarnessSlot(maxConcurrency: number) {
   const client = getRedis();
-  const key = "ssai:v1:harness-slots";
+  const key = harnessSlotsKey;
   const token = randomUUID();
   const now = Date.now();
   const expires = now + 70_000;

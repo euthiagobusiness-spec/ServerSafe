@@ -7,8 +7,10 @@ import {
 import { isAbortError } from "./chat-stream";
 import { isStoredAttachment } from "./attachments";
 import { AI_LIMITS } from "./config";
+import { canonicalOwnerId } from "./security";
 import {
-  attachmentStorageKey, mutateOwnerState, readAttachmentRecords, readOwnerState, setRedisClientForTests,
+  acquireConversationLock, attachmentStorageKeyV2, consumeAttachmentRateLimit, consumeRateLimit,
+  mutateOwnerState, ownerStateKeyV2, readAttachmentRecords, readOwnerState, setRedisClientForTests,
 } from "./storage";
 import type { Conversation, OwnerState } from "./types";
 
@@ -44,6 +46,22 @@ class MemoryRedis {
     this.purge(this.entries, key);
     const entry = this.entries.get(key);
     return entry ? structuredClone(entry.value) as T : null;
+  }
+
+  async incr(key: string) {
+    this.purge(this.entries, key);
+    const entry = this.entries.get(key);
+    const value = (typeof entry?.value === "number" ? entry.value : 0) + 1;
+    this.entries.set(key, { value, expiresAt: entry?.expiresAt });
+    return value;
+  }
+
+  async expire(key: string, seconds: number) {
+    this.purge(this.entries, key);
+    const entry = this.entries.get(key);
+    if (!entry) return 0;
+    entry.expiresAt = this.now + seconds * 1000;
+    return 1;
   }
 
   async mget<T>(...keys: string[]): Promise<T> {
@@ -122,9 +140,88 @@ function useMemoryRedis(context: TestContext) {
   return memory;
 }
 
+const ownerA = canonicalOwnerId("d9428888-122b-4a08-a3ce-73c7a0c0a214");
+const ownerB = canonicalOwnerId("e0539999-233c-4b19-b4df-84d8b1d1b325");
+
+test("v2 não lê dados v1 nem faz dual-write ou migração silenciosa", async (context) => {
+  const memory = useMemoryRedis(context);
+  const legacyKey = "ssai:v1:owner:legacy-cookie-owner:state";
+  const legacyState: OwnerState = {
+    version: 1,
+    projects: [{
+      project_id: "legacy-project",
+      name: "Projeto legado",
+      created_at: "2026-08-31T00:00:00.000Z",
+      updated_at: "2026-08-31T00:00:00.000Z",
+    }],
+    conversations: [],
+  };
+  await memory.set(legacyKey, legacyState);
+
+  assert.deepEqual((await readOwnerState(ownerA)).projects, []);
+  await mutateOwnerState(ownerA, (state) => {
+    state.projects.push({
+      project_id: "v2-project",
+      name: "Projeto v2",
+      created_at: "2026-08-31T00:00:00.000Z",
+      updated_at: "2026-08-31T00:00:00.000Z",
+    });
+  });
+  assert.deepEqual(await memory.peek(legacyKey), legacyState);
+  assert.equal((await memory.peek<OwnerState>(ownerStateKeyV2(ownerA)))?.projects[0].project_id, "v2-project");
+});
+
+test("logout/login no mesmo navegador não reutiliza o namespace entre usuários", async (context) => {
+  useMemoryRedis(context);
+  await mutateOwnerState(ownerA, (state) => { state.projects.push({
+    project_id: "project-a",
+    name: "Projeto A",
+    created_at: "2026-08-31T00:00:00.000Z",
+    updated_at: "2026-08-31T00:00:00.000Z",
+  }); });
+
+  assert.equal((await readOwnerState(ownerB)).projects.length, 0);
+  await mutateOwnerState(ownerB, (state) => { state.projects.push({
+    project_id: "project-b",
+    name: "Projeto B",
+    created_at: "2026-08-31T00:00:00.000Z",
+    updated_at: "2026-08-31T00:00:00.000Z",
+  }); });
+  assert.deepEqual((await readOwnerState(ownerA)).projects.map((project) => project.project_id), ["project-a"]);
+  assert.deepEqual((await readOwnerState(ownerB)).projects.map((project) => project.project_id), ["project-b"]);
+});
+
+test("locks de conversa são por usuário canônico", async (context) => {
+  useMemoryRedis(context);
+  const firstA = await acquireConversationLock(ownerA, "conversation-shared-id");
+  const secondA = await acquireConversationLock(ownerA, "conversation-shared-id");
+  const firstB = await acquireConversationLock(ownerB, "conversation-shared-id");
+
+  assert.equal(firstA.ok, true);
+  assert.equal(secondA.ok, false);
+  assert.equal(firstB.ok, true);
+  await firstA.release();
+  await firstB.release();
+  const afterRelease = await acquireConversationLock(ownerA, "conversation-shared-id");
+  assert.equal(afterRelease.ok, true);
+  await afterRelease.release();
+});
+
+test("rate limits user-scoped são por usuário e por janela", async (context) => {
+  const memory = useMemoryRedis(context);
+  context.mock.method(Date, "now", () => memory.now);
+
+  assert.equal(await consumeRateLimit(ownerA), 1);
+  assert.equal(await consumeRateLimit(ownerA), 2);
+  assert.equal(await consumeRateLimit(ownerB), 1);
+  assert.equal(await consumeAttachmentRateLimit(ownerA), 1);
+  assert.equal(await consumeAttachmentRateLimit(ownerB), 1);
+});
+
 test("integra upload, armazenamento, leitura, isolamento e exclusão atômica", async (context) => {
   const memory = useMemoryRedis(context);
-  const owner = "owner-a";
+  const owner = ownerA;
+  const otherOwner = ownerB;
   const conversationId = "conversation-a";
   await mutateOwnerState(owner, (state) => { state.conversations.push(conversation(conversationId)); });
 
@@ -139,7 +236,7 @@ test("integra upload, armazenamento, leitura, isolamento e exclusão atômica", 
 
   const [stored] = await readAttachmentRecords(owner, [metadata[0].attachment_id]);
   assert.equal(isStoredAttachment(stored, metadata[0].attachment_id, conversationId), true);
-  assert.deepEqual(await readAttachmentRecords("owner-b", [metadata[0].attachment_id]), [null]);
+  assert.deepEqual(await readAttachmentRecords(otherOwner, [metadata[0].attachment_id]), [null]);
   assert.equal(isStoredAttachment(stored, metadata[0].attachment_id, "conversation-b"), false);
 
   const beforeDelete = memory.transactionCount;
@@ -157,7 +254,7 @@ test("integra upload, armazenamento, leitura, isolamento e exclusão atômica", 
 test("expiração remove conteúdo, metadados, contador e referências de mensagens", async (context) => {
   const memory = useMemoryRedis(context);
   context.mock.method(Date, "now", () => memory.now);
-  const owner = "owner-expiration";
+  const owner = ownerA;
   const conversationId = "conversation-expiration";
   await mutateOwnerState(owner, (state) => { state.conversations.push(conversation(conversationId)); });
   const [metadata] = await persistAttachmentUpload(
@@ -186,10 +283,10 @@ test("expiração remove conteúdo, metadados, contador e referências de mensag
   assert.deepEqual(cleaned.conversations[0].attachments, []);
   assert.equal(cleaned.conversations[0].messages[0].attachments, undefined);
 
-  const persisted = await memory.peek<OwnerState>(`ssai:v1:owner:${owner}:state`);
+  const persisted = await memory.peek<OwnerState>(ownerStateKeyV2(owner));
   assert.deepEqual(persisted?.conversations[0].attachments, []);
   assert.equal(persisted?.conversations[0].messages[0].attachments, undefined);
-  assert.equal(await memory.peek(attachmentStorageKey(owner, metadata.attachment_id)), null);
+  assert.equal(await memory.peek(attachmentStorageKeyV2(owner, metadata.attachment_id)), null);
 });
 
 test("margem multipart não altera o limite documental de 4 MiB", () => {
@@ -200,19 +297,20 @@ test("margem multipart não altera o limite documental de 4 MiB", () => {
 test("permanência é isolada por conversa, remove TTL e restaura sete dias ao desligar", async (context) => {
   const memory = useMemoryRedis(context);
   context.mock.method(Date, "now", () => memory.now);
-  const owner = "owner-permanence";
+  const owner = ownerA;
+  const otherOwner = ownerB;
   const conversationId = "conversation-permanence";
   await mutateOwnerState(owner, (state) => {
     state.conversations.push(conversation(conversationId), conversation("conversation-other"));
   });
-  assert.equal(memory.expiration(`ssai:v1:owner:${owner}:state`), undefined);
+  assert.equal(memory.expiration(ownerStateKeyV2(owner)), undefined);
   const [uploaded] = await persistAttachmentUpload(
     owner,
     conversationId,
     [new File(["Documento sensível."], "sensivel.txt", { type: "text/plain" })],
     memory.now,
   );
-  const key = attachmentStorageKey(owner, uploaded.attachment_id);
+  const key = attachmentStorageKeyV2(owner, uploaded.attachment_id);
   assert.equal(memory.expiration(key), memory.now + AI_LIMITS.attachmentTtlSeconds * 1000);
 
   const permanent = await setConversationPermanence(owner, conversationId, true, memory.now);
@@ -222,7 +320,7 @@ test("permanência é isolada por conversa, remove TTL e restaura sete dias ao d
   const [permanentRecord] = await readAttachmentRecords(owner, [uploaded.attachment_id]);
   assert.equal(permanentRecord?.expires_at, null);
   assert.equal((await readOwnerState(owner)).conversations[1].permanence_enabled, undefined);
-  assert.equal((await readOwnerState("owner-other")).conversations.length, 0);
+  assert.equal((await readOwnerState(otherOwner)).conversations.length, 0);
 
   memory.advance(AI_LIMITS.attachmentTtlSeconds * 1000 + 1);
   assert.notEqual((await readAttachmentRecords(owner, [uploaded.attachment_id]))[0], null);
@@ -244,7 +342,7 @@ test("permanência é isolada por conversa, remove TTL e restaura sete dias ao d
 test("upload em conversa permanente nasce sem expiração automática", async (context) => {
   const memory = useMemoryRedis(context);
   context.mock.method(Date, "now", () => memory.now);
-  const owner = "owner-new-permanent";
+  const owner = ownerA;
   const conversationId = "conversation-new-permanent";
   const value = conversation(conversationId);
   value.permanence_enabled = true;
@@ -257,12 +355,12 @@ test("upload em conversa permanente nasce sem expiração automática", async (c
     memory.now,
   );
   assert.equal(metadata.expires_at, null);
-  assert.equal(memory.expiration(attachmentStorageKey(owner, metadata.attachment_id)), undefined);
+  assert.equal(memory.expiration(attachmentStorageKeyV2(owner, metadata.attachment_id)), undefined);
 });
 
 test("sinal abortado impede gravação do turno no OwnerState", async (context) => {
   useMemoryRedis(context);
-  const owner = "owner-aborted";
+  const owner = ownerA;
   const conversationId = "conversation-aborted";
   await mutateOwnerState(owner, (state) => { state.conversations.push(conversation(conversationId)); });
   const controller = new AbortController();

@@ -6,7 +6,8 @@ import {
   AttachmentProblem, buildChatPrompt, extractAttachment, extractAttachments,
   isStoredAttachment, type StoredAttachment,
 } from "./attachments";
-import { attachmentStorageKey } from "./storage";
+import { canonicalOwnerId } from "./security";
+import { attachmentStorageKeyV2 } from "./storage";
 
 const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PPTX_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
@@ -223,7 +224,10 @@ test("rejeita filename malicioso", async () => {
 
 test("isola chaves por owner e rejeita documento inexistente ou de outra conversa", () => {
   const id = "11111111-1111-4111-8111-111111111111";
-  assert.notEqual(attachmentStorageKey("owner-a", id), attachmentStorageKey("owner-b", id));
+  assert.notEqual(
+    attachmentStorageKeyV2(canonicalOwnerId("d9428888-122b-4a08-a3ce-73c7a0c0a214"), id),
+    attachmentStorageKeyV2(canonicalOwnerId("e0539999-233c-4b19-b4df-84d8b1d1b325"), id),
+  );
   assert.equal(isStoredAttachment(undefined, id, "conversation-a"), false);
   assert.equal(isStoredAttachment({ attachment_id: id, conversation_id: "conversation-b", name: "x", text: "x", expires_at: new Date().toISOString() }, id, "conversation-a"), false);
 });
