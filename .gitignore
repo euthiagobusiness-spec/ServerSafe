@@ -46,6 +46,7 @@ id_ed25519*
 *.backup
 *.dump
 *.sql
+!infra/postgres/migrations/*.sql
 *.sqlite
 *.sqlite3
 *.db

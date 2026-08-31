@@ -1,0 +1,56 @@
+# Operação futura em Ubuntu
+
+Este documento é um runbook de preparação. Nenhum passo remoto ou destrutivo faz parte da Fase A.
+
+## Fluxo de dados
+
+1. Supabase Auth continua sendo o provedor inicial de identidade. O serviço traduz `auth.uid()`/`claims.sub` para o `user_id` UUID canônico.
+2. PostgreSQL próprio é a fonte oficial de projetos, conversas, mensagens, documentos, versões, jobs, auditoria e uso de IA.
+3. Valkey contém somente estado transitório: cache, locks, rate limits, filas e leases. Nunca é fonte oficial de dados.
+4. Binários originais e artefatos grandes ficam em object storage através de `StorageProvider`; PostgreSQL guarda metadata, checksum e `storage_key`.
+5. Workers consomem jobs controlados e atualizam status/auditoria. Nenhum worker é iniciado pela aplicação atual.
+
+Este é um desenho futuro. Hoje, o runtime continua na arquitetura existente,
+com Supabase Auth e Upstash Redis v2; não há conexão com esta stack e não há
+dual-write. A migration Supabase existente não é uma segunda fonte operacional
+paralela. Um cutover futuro será explícito, migrado e testado, sem dual-write
+permanente; o Supabase permanecerá inicialmente somente como Auth.
+
+## Isolamento documental
+
+`conversation_documents` registra documentos disponíveis na conversa. `message_documents` registra a seleção explícita por mensagem. O serviço deve montar contexto exclusivamente a partir de `message_documents` da mensagem atual, verificar `owner_id` e `conversation_id` e rejeitar referências órfãs ou indisponíveis.
+
+## Serviços locais
+
+O Compose usa PostgreSQL 16 com pgvector `0.8.6-pg16` e Valkey
+`8.1.9-alpine`. Portas são publicadas somente em loopback, a rede dos serviços
+é interna, volumes são persistentes e ambos têm health check. As tags são
+apenas pins de versão: antes da primeira VM, devem ser fixadas por digest,
+considerando a arquitetura/plataforma final. Tags, compatibilidade e política
+de atualização devem ser reconfirmadas antes do rollout; esta fase não salta
+para Valkey 9.x.
+
+O arquivo `infra/compose/.env.example` é apenas um modelo. Crie o arquivo local fora do Git, substitua os placeholders e execute somente:
+
+```bash
+docker compose --env-file .env -f infra/compose/docker-compose.yml config --quiet
+```
+
+Não executar `up` sem autorização operacional específica.
+
+## Sequência de VM
+
+Quando houver uma VM, a sequência será: `preflight.sh` read-only, revisão humana, bootstrap do host, revisão, deploy da stack, health-check, e só então cadastro do serviço na operação. Bootstrap/deploy/backup/restore permanecem templates, retornam `NOT_IMPLEMENTED` com exit code não-zero e aguardam especificações de host e aprovação.
+
+## Backup e restore
+
+- PostgreSQL: `pg_dump` em formato custom, criptografado fora da VM, com retenção e teste periódico de `pg_restore` em ambiente isolado.
+- Object storage: versionamento/replicação e inventário separado; o dump SQL não contém binários.
+- Valkey: snapshots podem ajudar na recuperação operacional, mas não são backup de negócio.
+- Auditabilidade: registrar janela, operador, checksum, origem, destino e resultado sem registrar segredos, prompts ou conteúdo sensível.
+
+Detalhes e decisões pendentes estão em `infra/docs/costs.md` e na documentação de arquitetura do repositório.
+
+## O que não foi feito
+
+Não houve migração Redis v2, conexão com Supabase, alteração do Preview/Production, criação de usuário/role remoto, upload de objetos, execução de worker, geração de embeddings, RAG, editor XLSX, novas tools do OpenHarness ou alteração do runtime Next.js.
