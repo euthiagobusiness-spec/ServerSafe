@@ -16,6 +16,9 @@ import {
   executeCancellableTurn, linkedAbortController, onceAsync, throwIfAborted,
 } from "@/features/server-safe-ai/chat-stream";
 import {
+  chatErrorPayload, createRuntimeContext, logRuntimeEvent,
+} from "@/features/server-safe-ai/observability";
+import {
   isSameOriginMutation,
 } from "@/features/server-safe-ai/security";
 import type { CanonicalOwnerId } from "@/features/server-safe-ai/security";
@@ -449,6 +452,8 @@ async function dispatch(request: NextRequest, context: Context) {
       .map(chatAttachment);
     const history = buildRecentHistory(active.messages);
     const prompt = buildChatPrompt(history, message, documents, unavailableNames);
+    const runtime = createRuntimeContext();
+    logRuntimeEvent(runtime, "CHAT_ACCEPTED", {});
     const lock = await acquireConversationLock(owner, conversationId);
     if (!lock.ok) throw new RequestProblem(409, "Já existe uma solicitação em andamento nesta conversa.");
     let modelKey;
@@ -457,6 +462,7 @@ async function dispatch(request: NextRequest, context: Context) {
       const lockedConversation = lockedState.conversations.find((item) => item.conversation_id === conversationId);
       if (!lockedConversation) throw new RequestProblem(404, "Conversa não encontrada.");
       modelKey = resolveConversationModelKey(lockedConversation);
+      runtime.modelKey = modelKey;
     } catch (error) {
       await lock.release();
       throw error;
@@ -496,6 +502,7 @@ async function dispatch(request: NextRequest, context: Context) {
             modelKey,
             (event) => send(event.type, event.type === "delta" ? { text: event.text } : { label: event.label }),
             execution.controller.signal,
+            runtime,
           ),
           persist: async (answer) => {
             throwIfAborted(execution.controller.signal);
@@ -513,8 +520,9 @@ async function dispatch(request: NextRequest, context: Context) {
             }, { signal: execution.controller.signal });
           },
           onDone: () => send("done", { conversation_id: conversationId }),
-          onError: () => send("error", { message: "A solicitação não pôde ser concluída." }),
+          onError: () => send("error", chatErrorPayload(runtime.requestId)),
           cleanup,
+          runtime,
         });
         void turnPromise.finally(close);
       },

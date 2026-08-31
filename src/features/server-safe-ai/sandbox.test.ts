@@ -6,6 +6,11 @@ import {
   OPENHARNESS_ALLOWED_TOOLS,
   OPENHARNESS_DENIED_TOOLS,
 } from "./sandbox";
+import {
+  classifyOpenHarnessError,
+  classifyOpenHarnessExit,
+  classifySandboxCreateError,
+} from "./observability";
 import type { ModelKey } from "./types";
 
 function optionValue(args: string[], option: string) {
@@ -64,4 +69,18 @@ test("resolve model_key no servidor e altera realmente o argumento --model", () 
     "test-api-key",
     "anthropic.claude-opus-5" as ModelKey,
   ));
+});
+
+test("falha de Sandbox.create recebe código seguro sem expor detalhes", () => {
+  assert.equal(classifySandboxCreateError(new Error("sandbox provider detail")), "SANDBOX_CREATE_FAILED");
+});
+
+test("exit code diferente de zero recebe código específico do OpenHarness", () => {
+  assert.equal(classifyOpenHarnessExit(1), "OPENHARNESS_EXIT_NONZERO");
+  assert.equal(classifyOpenHarnessExit(0), null);
+});
+
+test("timeout do runCommand recebe código específico", () => {
+  const error = Object.assign(new Error("private timeout detail"), { code: "COMMAND_TIMEOUT" });
+  assert.equal(classifyOpenHarnessError(error), "OPENHARNESS_TIMEOUT");
 });

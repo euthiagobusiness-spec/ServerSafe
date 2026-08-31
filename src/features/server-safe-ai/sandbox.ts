@@ -6,6 +6,11 @@ import { SERVERSAFE_AI_SYSTEM_PROMPT } from "./instructions";
 import { throwIfAborted } from "./chat-stream";
 import { providerModelIdForKey } from "./models";
 import type { ModelKey } from "./types";
+import {
+  classifyOpenHarnessError, classifyOpenHarnessExit, classifySandboxCreateError,
+  isRequestAbortError, logRuntimeEvent, RuntimeFailure,
+} from "./observability";
+import type { RuntimeContext } from "./observability";
 
 export const OPENHARNESS_ALLOWED_TOOLS = ["skill", "tool_search", "web_fetch", "web_search", "brief"];
 export const OPENHARNESS_DENIED_TOOLS = [
@@ -49,21 +54,40 @@ export async function runOpenHarness(
   modelKey: ModelKey,
   onEvent: (event: HarnessEvent) => void,
   signal?: AbortSignal,
+  runtime?: RuntimeContext,
 ) {
   const snapshotId = process.env.SERVERSAFE_AI_SANDBOX_SNAPSHOT_ID;
   const apiKey = process.env.SERVERSAFE_BEDROCK_API_KEY;
   if (!snapshotId || !apiKey) throw new Error("AI_RUNTIME_NOT_CONFIGURED");
   throwIfAborted(signal);
 
-  const sandbox = await Sandbox.create({
-    source: { type: "snapshot", snapshotId },
-    timeout: 60_000,
-    persistent: false,
-  });
+  const sandboxStartedAt = Date.now();
+  let sandbox;
+  try {
+    sandbox = await Sandbox.create({
+      source: { type: "snapshot", snapshotId },
+      timeout: 60_000,
+      persistent: false,
+    });
+  } catch (error) {
+    if (signal?.aborted || isRequestAbortError(error)) throw error;
+    const errorCode = classifySandboxCreateError(error);
+    if (runtime) logRuntimeEvent(runtime, "SANDBOX_CREATE", {
+      error_code: errorCode,
+      duration_ms: Date.now() - sandboxStartedAt,
+      aborted: false,
+    });
+    throw new RuntimeFailure(errorCode);
+  }
+  if (runtime) {
+    logRuntimeEvent(runtime, "SANDBOX_CREATE", { duration_ms: Date.now() - sandboxStartedAt });
+    logRuntimeEvent(runtime, "SANDBOX_CREATED", {});
+  }
 
   let buffer = "";
   let answer = "";
   let streamChars = 0;
+  let outputFailure: RuntimeFailure | null = null;
   const processLine = (line: string) => {
     throwIfAborted(signal);
     if (!line.trim()) return;
@@ -99,27 +123,54 @@ export async function runOpenHarness(
         buffer = lines.pop() ?? "";
         lines.forEach(processLine);
         callback();
-      } catch (error) { callback(error as Error); }
+      } catch (error) {
+        const errorCode = classifyOpenHarnessError(error);
+        outputFailure ??= new RuntimeFailure(errorCode, { timeout: errorCode === "OPENHARNESS_TIMEOUT" });
+        callback(outputFailure);
+      }
     },
   });
+  stdout.on("error", () => undefined);
   const stderr = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
 
   try {
     throwIfAborted(signal);
     onEvent({ type: "activity", label: "Iniciando ambiente isolado..." });
-    const result = await sandbox.runCommand({
-      cmd: "/usr/bin/env",
-      args: buildOpenHarnessCommandArgs(prompt, apiKey, modelKey),
-      cwd: "/vercel/sandbox/workspace",
-      stdout,
-      stderr,
-      signal,
-      timeoutMs: AI_LIMITS.sandboxTimeoutMs,
-    });
-    throwIfAborted(signal);
-    if (buffer.trim()) processLine(buffer);
-    if (result.exitCode !== 0) throw new Error("OPENHARNESS_FAILED");
-    return answer.trim();
+    if (runtime) logRuntimeEvent(runtime, "OPENHARNESS_START", {});
+    const harnessStartedAt = Date.now();
+    try {
+      const result = await sandbox.runCommand({
+        cmd: "/usr/bin/env",
+        args: buildOpenHarnessCommandArgs(prompt, apiKey, modelKey),
+        cwd: "/vercel/sandbox/workspace",
+        stdout,
+        stderr,
+        signal,
+        timeoutMs: AI_LIMITS.sandboxTimeoutMs,
+      });
+      throwIfAborted(signal);
+      if (outputFailure) throw outputFailure;
+      if (buffer.trim()) processLine(buffer);
+      const errorCode = classifyOpenHarnessExit(result.exitCode);
+      if (errorCode) throw new RuntimeFailure(errorCode, { exitCode: result.exitCode });
+      if (runtime) logRuntimeEvent(runtime, "OPENHARNESS_EXIT", {
+        duration_ms: Date.now() - harnessStartedAt,
+        exit_code: result.exitCode,
+      });
+      return answer.trim();
+    } catch (error) {
+      if (signal?.aborted || isRequestAbortError(error)) throw error;
+      const errorCode = classifyOpenHarnessError(error);
+      if (runtime) logRuntimeEvent(runtime, "OPENHARNESS_EXIT", {
+        error_code: errorCode,
+        duration_ms: Date.now() - harnessStartedAt,
+        exit_code: error instanceof RuntimeFailure ? error.exitCode : undefined,
+        timeout: errorCode === "OPENHARNESS_TIMEOUT",
+        aborted: false,
+      });
+      if (error instanceof RuntimeFailure) throw error;
+      throw new RuntimeFailure(errorCode, { timeout: errorCode === "OPENHARNESS_TIMEOUT" });
+    }
   } finally {
     await sandbox.stop().catch(() => undefined);
   }

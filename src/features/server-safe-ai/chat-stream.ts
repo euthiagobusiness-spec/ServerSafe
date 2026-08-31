@@ -1,8 +1,13 @@
+import {
+  classifyRuntimeError,
+  isRequestAbortError,
+  logRuntimeEvent,
+} from "./observability";
+import type { RuntimeContext } from "./observability";
+
 export type ChatTurnResult = "completed" | "aborted" | "failed";
 
-export function isAbortError(error: unknown) {
-  return error instanceof Error && error.name === "AbortError";
-}
+export const isAbortError = isRequestAbortError;
 
 export function throwIfAborted(signal?: AbortSignal) {
   if (!signal?.aborted) return;
@@ -38,6 +43,7 @@ export async function executeCancellableTurn({
   onDone,
   onError,
   cleanup,
+  runtime,
 }: {
   signal: AbortSignal;
   run: () => Promise<string>;
@@ -45,17 +51,50 @@ export async function executeCancellableTurn({
   onDone: () => void;
   onError: (error: unknown) => void;
   cleanup: () => Promise<void>;
+  runtime?: RuntimeContext;
 }): Promise<ChatTurnResult> {
   try {
     throwIfAborted(signal);
     const answer = await run();
     throwIfAborted(signal);
-    await persist(answer);
+    const persistStartedAt = Date.now();
+    if (runtime) logRuntimeEvent(runtime, "PERSIST_START", {});
+    try {
+      await persist(answer);
+    } catch (error) {
+      if (signal.aborted || isAbortError(error)) throw error;
+      if (runtime) {
+        logRuntimeEvent(runtime, "TURN_FAILED", {
+          error_code: "REDIS_PERSIST_FAILED",
+          duration_ms: Date.now() - runtime.startedAt,
+          aborted: false,
+        });
+      }
+      onError(error);
+      return "failed";
+    }
+    if (runtime) logRuntimeEvent(runtime, "PERSIST_SUCCESS", { duration_ms: Date.now() - persistStartedAt });
     throwIfAborted(signal);
     onDone();
     return "completed";
   } catch (error) {
-    if (signal.aborted || isAbortError(error)) return "aborted";
+    if (signal.aborted || isAbortError(error)) {
+      if (runtime) {
+        logRuntimeEvent(runtime, "TURN_FAILED", {
+          error_code: "REQUEST_ABORTED",
+          duration_ms: Date.now() - runtime.startedAt,
+          aborted: true,
+        });
+      }
+      return "aborted";
+    }
+    if (runtime) {
+      logRuntimeEvent(runtime, "TURN_FAILED", {
+        error_code: classifyRuntimeError(error),
+        duration_ms: Date.now() - runtime.startedAt,
+        aborted: false,
+      });
+    }
     onError(error);
     return "failed";
   } finally {
