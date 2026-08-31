@@ -3,8 +3,8 @@ import test from "node:test";
 import { zipSync, strToU8 } from "fflate";
 import { AI_LIMITS } from "./config";
 import {
-  AttachmentProblem, buildChatPrompt, extractAttachment, extractAttachments,
-  isStoredAttachment, type StoredAttachment,
+  ATTACHMENT_ID_PATTERN, AttachmentProblem, buildChatPrompt, extractAttachment, extractAttachments,
+  isStoredAttachment, selectChatAttachments, type StoredAttachment,
 } from "./attachments";
 import { canonicalOwnerId } from "./security";
 import { attachmentStorageKeyV2 } from "./storage";
@@ -280,6 +280,169 @@ test("conversa sem anexos preserva exatamente o prompt anterior", () => {
     buildChatPrompt("Usuário: anterior", "Atual"),
     "Histórico da conversa:\nUsuário: anterior\n\nUsuário: Atual\nAssistente:",
   );
+});
+
+const selectionNow = Date.parse("2026-08-31T12:00:00.000Z");
+const selectionConversationId = "conversation-selection";
+const selectionIds = {
+  a: "11111111-1111-4111-8111-111111111111",
+  b: "22222222-2222-4222-8222-222222222222",
+  c: "33333333-3333-4333-8333-333333333333",
+};
+
+function selectionMetadata(
+  attachmentId: string,
+  name: string,
+  expiresAt = "2026-09-01T12:00:00.000Z",
+) {
+  return {
+    attachment_id: attachmentId,
+    name,
+    media_type: "text/plain" as const,
+    size_bytes: 10,
+    extracted_chars: 10,
+    created_at: "2026-08-31T00:00:00.000Z",
+    expires_at: expiresAt,
+  };
+}
+
+function selectionStored(
+  metadata: ReturnType<typeof selectionMetadata>,
+  conversationId = selectionConversationId,
+  text = `Conteúdo de ${metadata.name}`,
+): StoredAttachment {
+  return { ...metadata, conversation_id: conversationId, text };
+}
+
+function selectDocuments(
+  metadata: ReturnType<typeof selectionMetadata>[],
+  attachmentIds: string[],
+  storedValues: Array<StoredAttachment | null>,
+) {
+  return selectChatAttachments({
+    metadata,
+    attachmentIds,
+    storedValues,
+    conversationId: selectionConversationId,
+    permanenceEnabled: false,
+    now: selectionNow,
+  });
+}
+
+test("IDs de anexo exigem UUID com formato válido", () => {
+  assert.equal(ATTACHMENT_ID_PATTERN.test(selectionIds.a), true);
+  assert.equal(ATTACHMENT_ID_PATTERN.test("11111111-1111-4111-8111-11111111111x"), false);
+  assert.equal(ATTACHMENT_ID_PATTERN.test("11111111111141118111111111111111"), false);
+});
+
+test("selecionar A entre A+B+C envia somente A ao prompt", () => {
+  const metadata = [
+    selectionMetadata(selectionIds.a, "A.txt"),
+    selectionMetadata(selectionIds.b, "B.txt"),
+    selectionMetadata(selectionIds.c, "C.txt"),
+  ];
+  const result = selectDocuments(metadata, [selectionIds.a], [selectionStored(metadata[0])]);
+  const prompt = buildChatPrompt("", "Analise A", result.documents);
+
+  assert.deepEqual(result.documents.map((item) => item.name), ["A.txt"]);
+  assert.doesNotMatch(prompt, /B\.txt|C\.txt|Conteúdo de B\.txt|Conteúdo de C\.txt/);
+  assert.match(prompt, /Conteúdo de A\.txt/);
+});
+
+test("selecionar A+C envia somente A e C e preserva os metadados da mensagem", () => {
+  const metadata = [
+    selectionMetadata(selectionIds.a, "A.txt"),
+    selectionMetadata(selectionIds.b, "B.txt"),
+    selectionMetadata(selectionIds.c, "C.txt"),
+  ];
+  const result = selectDocuments(
+    metadata,
+    [selectionIds.a, selectionIds.c],
+    [selectionStored(metadata[0]), selectionStored(metadata[2])],
+  );
+  const prompt = buildChatPrompt("", "Analise A e C", result.documents);
+
+  assert.deepEqual(result.documents.map((item) => item.name), ["A.txt", "C.txt"]);
+  assert.deepEqual(result.messageAttachments.map((item) => item.attachment_id), [selectionIds.a, selectionIds.c]);
+  assert.doesNotMatch(prompt, /B\.txt|Conteúdo de B\.txt/);
+});
+
+test("attachment_ids vazio não envia documento ao prompt", () => {
+  const metadata = [
+    selectionMetadata(selectionIds.a, "A.txt"),
+    selectionMetadata(selectionIds.b, "B.txt"),
+  ];
+  const result = selectDocuments(metadata, [], []);
+
+  assert.deepEqual(result.documents, []);
+  assert.deepEqual(result.messageAttachments, []);
+  assert.equal(buildChatPrompt("", "Mensagem sem documentos", result.documents), "Mensagem sem documentos");
+});
+
+test("documento ativo não selecionado nunca aparece no prompt", () => {
+  const metadata = [
+    selectionMetadata(selectionIds.a, "A.txt"),
+    selectionMetadata(selectionIds.b, "B.txt"),
+  ];
+  const result = selectDocuments(metadata, [selectionIds.a], [selectionStored(metadata[0])]);
+
+  assert.doesNotMatch(buildChatPrompt("", "Atual", result.documents), /B\.txt|Conteúdo de B\.txt/);
+});
+
+test("documento de outra conversa é rejeitado antes do prompt", () => {
+  const metadata = [selectionMetadata(selectionIds.a, "A.txt")];
+
+  assert.throws(
+    () => selectDocuments(metadata, [selectionIds.a], [selectionStored(metadata[0], "conversation-other")]),
+    (error: unknown) => error instanceof AttachmentProblem
+      && error.status === 410
+      && error.code === "ATTACHMENT_UNAVAILABLE",
+  );
+});
+
+test("attachment_id de outro owner sem registro no namespace autenticado é rejeitado", () => {
+  const metadata = [selectionMetadata(selectionIds.a, "A.txt")];
+
+  assert.throws(
+    () => selectDocuments(metadata, [selectionIds.a], [null]),
+    (error: unknown) => error instanceof AttachmentProblem
+      && error.status === 410
+      && error.code === "ATTACHMENT_UNAVAILABLE",
+  );
+});
+
+test("documento selecionado expirado retorna erro apropriado", () => {
+  const metadata = [selectionMetadata(selectionIds.a, "A.txt", "2026-08-31T11:59:59.999Z")];
+
+  assert.throws(
+    () => selectDocuments(metadata, [selectionIds.a], [selectionStored(metadata[0])]),
+    (error: unknown) => error instanceof AttachmentProblem
+      && error.status === 410
+      && error.code === "ATTACHMENT_UNAVAILABLE",
+  );
+});
+
+test("documento expirado não selecionado não bloqueia a mensagem", () => {
+  const metadata = [
+    selectionMetadata(selectionIds.a, "A.txt"),
+    selectionMetadata(selectionIds.b, "B-expirado.txt", "2026-08-31T11:59:59.999Z"),
+  ];
+  const result = selectDocuments(metadata, [selectionIds.a], [selectionStored(metadata[0])]);
+
+  assert.deepEqual(result.documents.map((item) => item.name), ["A.txt"]);
+  assert.doesNotMatch(buildChatPrompt("", "Analise A", result.documents), /B-expirado\.txt/);
+});
+
+test("a seleção não faz fallback para todos os anexos ativos", () => {
+  const metadata = [
+    selectionMetadata(selectionIds.a, "A.txt"),
+    selectionMetadata(selectionIds.b, "B.txt"),
+    selectionMetadata(selectionIds.c, "C.txt"),
+  ];
+  const result = selectDocuments(metadata, [selectionIds.a], [selectionStored(metadata[0])]);
+
+  assert.equal(result.documents.length, 1);
+  assert.deepEqual(result.messageAttachments.map((item) => item.name), ["A.txt"]);
 });
 
 test("DOCX com expansão excessiva é rejeitado como zip bomb", async () => {

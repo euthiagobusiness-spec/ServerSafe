@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveAuthenticatedIdentity } from "@/features/server-safe-ai/auth";
 import { AI_LIMITS, assertRuntimeConfiguration, isConfiguredSlug } from "@/features/server-safe-ai/config";
 import {
-  AttachmentProblem, buildChatPrompt, extractAttachments, isStoredAttachment,
+  ATTACHMENT_ID_PATTERN, AttachmentProblem, buildChatPrompt, extractAttachments, isStoredAttachment, selectChatAttachments,
   type StoredAttachment,
 } from "@/features/server-safe-ai/attachments";
 import { buildRecentHistory, canStoreTurn, normalizedTitle } from "@/features/server-safe-ai/core";
@@ -26,7 +26,7 @@ import {
   acquireConversationLock, acquireHarnessSlot, consumeRateLimit,
   consumeAttachmentRateLimit, mutateOwnerState, readAttachmentRecords, readOwnerState, StorageLimitError,
 } from "@/features/server-safe-ai/storage";
-import type { AttachmentMetadata, ChatAttachment } from "@/features/server-safe-ai/types";
+import type { AttachmentMetadata } from "@/features/server-safe-ai/types";
 import { getSupabasePublicConfig } from "@/lib/supabase/config";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -99,15 +99,6 @@ async function multipartBody(request: NextRequest) {
   } catch {
     throw new RequestProblem(400, "Upload multipart inválido.");
   }
-}
-
-function chatAttachment(metadata: AttachmentMetadata): ChatAttachment {
-  return {
-    attachment_id: metadata.attachment_id,
-    name: metadata.name,
-    media_type: metadata.media_type,
-    size_bytes: metadata.size_bytes,
-  };
 }
 
 export async function persistAttachmentUpload(
@@ -417,7 +408,7 @@ async function dispatch(request: NextRequest, context: Context) {
     if (!message) throw new RequestProblem(400, "Mensagem vazia.");
     if (message.length > AI_LIMITS.messageChars) throw new RequestProblem(413, "Mensagem excede o limite permitido.");
     if (attachmentIds.length > AI_LIMITS.maxAttachmentsPerUpload
-      || attachmentIds.some((value) => !/^[0-9a-f-]{36}$/i.test(value))) {
+      || attachmentIds.some((value) => !ATTACHMENT_ID_PATTERN.test(value))) {
       throw new RequestProblem(400, "Referências de anexos inválidas.");
     }
     const state = await readOwnerState(owner);
@@ -426,32 +417,18 @@ async function dispatch(request: NextRequest, context: Context) {
     resolveConversationModelKey(active);
     if (!canStoreTurn(active, message)) throw new RequestProblem(409, "Esta conversa atingiu o limite de armazenamento. Crie uma nova conversa.");
     const now = Date.now();
-    const allMetadata = active.attachments ?? [];
-    const activeMetadata = allMetadata.filter((item) => active.permanence_enabled === true
-      || (item.expires_at !== null && Date.parse(item.expires_at) > now));
-    const storedValues = await readAttachmentRecords(owner, activeMetadata.map((item) => item.attachment_id));
-    const documents: StoredAttachment[] = [];
-    const unavailableNames = allMetadata
-      .filter((item) => active.permanence_enabled !== true
-        && (item.expires_at === null || Date.parse(item.expires_at) <= now))
-      .map((item) => item.name);
-    activeMetadata.forEach((metadata, index) => {
-      const value = storedValues[index];
-      const retentionMatches = active.permanence_enabled === true
-        ? value?.expires_at === null
-        : typeof value?.expires_at === "string" && Date.parse(value.expires_at) > now;
-      if (isStoredAttachment(value, metadata.attachment_id, conversationId) && retentionMatches) {
-        documents.push(value);
-      } else unavailableNames.push(metadata.name);
+    const metadata = active.attachments ?? [];
+    const storedValues = await readAttachmentRecords(owner, attachmentIds);
+    const { documents, messageAttachments } = selectChatAttachments({
+      metadata,
+      attachmentIds,
+      storedValues,
+      conversationId,
+      permanenceEnabled: active.permanence_enabled === true,
+      now,
     });
-    if (attachmentIds.some((attachmentId) => !documents.some((document) => document.attachment_id === attachmentId))) {
-      throw new RequestProblem(410, "Um dos documentos anexados expirou ou não está mais disponível. Anexe-o novamente.");
-    }
-    const messageAttachments = activeMetadata
-      .filter((metadata) => attachmentIds.includes(metadata.attachment_id))
-      .map(chatAttachment);
     const history = buildRecentHistory(active.messages);
-    const prompt = buildChatPrompt(history, message, documents, unavailableNames);
+    const prompt = buildChatPrompt(history, message, documents);
     const runtime = createRuntimeContext();
     logRuntimeEvent(runtime, "CHAT_ACCEPTED", {});
     const lock = await acquireConversationLock(owner, conversationId);

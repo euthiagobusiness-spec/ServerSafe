@@ -3,12 +3,14 @@ import { AI_LIMITS } from "./config";
 import {
   ATTACHMENT_MIME_TYPES,
   type AttachmentMediaType,
+  type ChatAttachment,
   type AttachmentMetadata,
 } from "./types";
 
 const DOCX_TYPE = ATTACHMENT_MIME_TYPES.docx;
 const PPTX_TYPE = ATTACHMENT_MIME_TYPES.pptx;
 const SAFE_PPTX_PRINTER_SETTINGS_ENTRY = /^ppt\/printerSettings\/printerSettings\d+\.bin$/i;
+export const ATTACHMENT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ALLOWED_TYPES: Record<string, AttachmentMediaType> = {
   ".pdf": ATTACHMENT_MIME_TYPES.pdf,
   ".docx": DOCX_TYPE,
@@ -446,6 +448,74 @@ export function isStoredAttachment(
     && record.text.length <= AI_LIMITS.attachmentExtractedChars
     && Object.values(ALLOWED_TYPES).includes(record.media_type as AttachmentMediaType)
     && (record.expires_at === null || typeof record.expires_at === "string");
+}
+
+export type ChatAttachmentSelection = {
+  documents: StoredAttachment[];
+  messageAttachments: ChatAttachment[];
+};
+
+export function selectChatAttachments({
+  metadata,
+  attachmentIds,
+  storedValues,
+  conversationId,
+  permanenceEnabled,
+  now = Date.now(),
+}: {
+  metadata: AttachmentMetadata[];
+  attachmentIds: string[];
+  storedValues: Array<StoredAttachment | null>;
+  conversationId: string;
+  permanenceEnabled: boolean;
+  now?: number;
+}): ChatAttachmentSelection {
+  const selectedMetadata = attachmentIds.map((attachmentId) => {
+    const value = metadata.find((item) => item.attachment_id === attachmentId);
+    if (!value) {
+      throw new AttachmentProblem(
+        410,
+        "ATTACHMENT_UNAVAILABLE",
+        "Um dos documentos anexados expirou ou não está mais disponível. Anexe-o novamente.",
+      );
+    }
+    return value;
+  });
+
+  if (storedValues.length !== selectedMetadata.length) {
+    throw new AttachmentProblem(
+      410,
+      "ATTACHMENT_UNAVAILABLE",
+      "Um dos documentos anexados expirou ou não está mais disponível. Anexe-o novamente.",
+    );
+  }
+
+  const documents = selectedMetadata.map((item, index) => {
+    const metadataAvailable = permanenceEnabled
+      || (item.expires_at !== null && Date.parse(item.expires_at) > now);
+    const value = storedValues[index];
+    const storedAvailable = permanenceEnabled
+      ? value?.expires_at === null
+      : typeof value?.expires_at === "string" && Date.parse(value.expires_at) > now;
+    if (!metadataAvailable || !storedAvailable || !isStoredAttachment(value, item.attachment_id, conversationId)) {
+      throw new AttachmentProblem(
+        410,
+        "ATTACHMENT_UNAVAILABLE",
+        "Um dos documentos anexados expirou ou não está mais disponível. Anexe-o novamente.",
+      );
+    }
+    return value;
+  });
+
+  return {
+    documents,
+    messageAttachments: selectedMetadata.map((item) => ({
+      attachment_id: item.attachment_id,
+      name: item.name,
+      media_type: item.media_type,
+      size_bytes: item.size_bytes,
+    })),
+  };
 }
 
 export function buildChatPrompt(
