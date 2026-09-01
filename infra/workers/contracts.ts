@@ -1,38 +1,52 @@
+import type { DocumentId, DocumentVersionId, JobId, OwnerId } from "../documents/domain";
+import type { DocumentJobType, JobStatus } from "../jobs/service";
+
 export const JOB_STATUSES = ["queued", "processing", "completed", "failed", "cancelled"] as const;
-export type JobStatus = typeof JOB_STATUSES[number];
 
-export const DOCUMENT_OPERATIONS = ["validate", "extract", "classify", "chunk", "purge"] as const;
-export type DocumentOperation = typeof DOCUMENT_OPERATIONS[number];
+export const WORKER_JOB_TYPES = [
+  "document.extract",
+  "document.classify",
+  "document.chunk",
+  "spreadsheet.process",
+] as const satisfies ReadonlyArray<DocumentJobType>;
 
-export const SPREADSHEET_OPERATIONS = ["read", "create", "update", "append_rows", "export"] as const;
-export type SpreadsheetOperation = typeof SPREADSHEET_OPERATIONS[number];
+export type WorkerJobType = typeof WORKER_JOB_TYPES[number];
 
-export type WorkerJob<TType extends string, TPayload> = {
-  jobId: string;
-  ownerId: string;
-  type: TType;
+export type WorkerJobPayload = Readonly<{
+  ownerId: OwnerId;
+  documentId: DocumentId;
+  versionId: DocumentVersionId;
+  operation: WorkerJobType;
+}>;
+
+export type WorkerJobEnvelope = Readonly<{
+  jobId: JobId;
+  ownerId: OwnerId;
+  documentId: DocumentId;
+  versionId: DocumentVersionId;
+  operation: WorkerJobType;
   status: JobStatus;
   attempt: number;
   maxAttempts: number;
   idempotencyKey: string;
-  payload: TPayload;
-};
+  payload: WorkerJobPayload;
+}>;
 
-export type DocumentJobPayload = {
-  documentId: string;
-  versionId?: string;
-  operation: DocumentOperation;
-};
+export type AuthorizedWorkerInput = Readonly<{
+  ownerId: OwnerId;
+  jobId: JobId;
+  documentId: DocumentId;
+  versionId: DocumentVersionId;
+}>;
 
-export type SpreadsheetJobPayload = {
-  documentId: string;
-  versionId?: string;
-  operation: SpreadsheetOperation;
-  outputVersion?: boolean;
-};
-
-export type DocumentWorkerJob = WorkerJob<"document", DocumentJobPayload>;
-export type SpreadsheetWorkerJob = WorkerJob<"spreadsheet", SpreadsheetJobPayload>;
+/**
+ * Future worker boundary. Workers receive identifiers and fetch state through
+ * an authorized application/repository layer. Queue messages never contain
+ * document bytes or extracted content.
+ */
+export interface AuthorizedWorkerStateReader<TState> {
+  getState(input: AuthorizedWorkerInput): Promise<TState | null>;
+}
 
 export type WorkerFailure = {
   status: "failed";
@@ -42,7 +56,7 @@ export type WorkerFailure = {
 
 export type WorkerSuccess = {
   status: "completed";
-  outputVersionId?: string;
+  outputVersionId?: DocumentVersionId;
   auditEventId?: string;
 };
 

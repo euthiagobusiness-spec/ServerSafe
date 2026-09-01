@@ -1,6 +1,6 @@
 # ServerSafe Infrastructure v1
 
-Scaffolding local e provider-agnostic para uma futura infraestrutura em VMs Ubuntu. Esta Fase A não altera o runtime Next.js, o Upstash Redis v2, o Supabase Auth, o OpenHarness do Preview ou qualquer recurso remoto.
+Scaffolding local e provider-agnostic para uma futura infraestrutura em VMs Ubuntu. As Fases A e B1 não alteram o runtime Next.js, o Upstash Redis v2, o Supabase Auth, o OpenHarness do Preview ou qualquer recurso remoto.
 
 ## Arquitetura
 
@@ -23,6 +23,37 @@ Supabase Auth (inicial) -> user_id UUID canônico
 - `infra/storage/storage.ts` define a fronteira de object storage sem escolher fornecedor.
 - `infra/workers/contracts.ts` e `infra/openharness/contracts.ts` são contratos, não implementações nem alterações no agente atual.
 - `infra/scripts/` separa preflight, bootstrap, deploy, health-check e backup/restore. Somente o preflight e o health-check são read-only.
+
+## Fase B1 — Document Platform Core
+
+A B1 adiciona, ainda sem adapter produtivo, o núcleo provider-neutral da
+plataforma documental:
+
+- `infra/documents/domain.ts`, `repository.ts` e `service.ts` definem IDs,
+  metadata, versões, disponibilidade por conversa e a API de aplicação.
+- A API documental recebe somente `TrustedDocumentContext`, criado na fronteira
+  server-side a partir de `auth.uid()`/`claims.sub` já validado. Não existe
+  construtor público de owner por string; browser, prompt, cookie legado e job
+  não escolhem o owner.
+- `infra/storage/local.ts` é um adapter somente para desenvolvimento/testes.
+  Ele deriva o caminho do objeto de owner/document/version, grava em streaming,
+  verifica tamanho e SHA-256, canonicaliza o root, rejeita symlink/reparse,
+  traversal e overwrite concorrente sem condição, e não cria URLs assinadas ou
+  uploads multipart fictícios. A proteção contra TOCTOU é best-effort dentro
+  das limitações do filesystem local e não torna este adapter produtivo.
+- `infra/jobs/service.ts` cria jobs idempotentes dos tipos
+  `document.extract`, `document.classify`, `document.chunk` e
+  `spreadsheet.process`. `infra/workers/contracts.ts` mantém a fronteira
+  futura: a fila carrega IDs e operação, nunca bytes ou conteúdo documental.
+- `infra/openharness/contracts.ts` rejeita recursivamente argumentos que tentem
+  transportar owner, user, principal, request ou conversation; identidade e
+  conversa são server-issued no contexto autenticado.
+
+O ciclo futuro é `initialize upload -> object storage -> complete -> version
+current -> queued job`. A seleção continua explícita: `conversation_documents`
+indica disponibilidade; somente `message_documents` selecionados podem formar
+o contexto de uma mensagem. A identidade é fornecida pelo serviço autenticado
+como owner canônico; agentes e clientes não escolhem `ownerId`.
 
 ## Fonte de verdade e cutover
 
@@ -54,4 +85,9 @@ PostgreSQL novo deverá ser uma ação operacional explicitamente autorizada.
 
 ## Limites desta fase
 
-Não há migração do Redis atual, pipeline de embeddings/RAG, editor XLSX, adapter de storage, worker executável, ferramenta OpenHarness nova, bootstrap de VM, backup real ou deploy. A primeira VM exigirá confirmação de CPU, memória, disco, rede, domínio, política de backup e operador responsável.
+Não há migração do Redis atual, pipeline de embeddings/RAG, editor XLSX,
+adapter produtivo de storage, worker executável, ferramenta OpenHarness nova,
+bootstrap de VM, backup real ou deploy. O adapter local da B1 é restrito a
+desenvolvimento/testes e não representa persistência de produção. A primeira
+VM exigirá confirmação de CPU, memória, disco, rede, domínio, política de
+backup e operador responsável.
