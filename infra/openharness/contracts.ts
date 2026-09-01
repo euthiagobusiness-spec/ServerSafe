@@ -123,7 +123,7 @@ export type DocumentSummary = {
   documentId: string;
   name: string;
   mediaType: string;
-  status: "pending" | "processing" | "ready" | "failed" | "expired" | "deleted";
+  status: "pending" | "processing" | "ready" | "failed" | "expired" | "archived" | "deleted";
   currentVersion?: number;
 };
 

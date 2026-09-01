@@ -36,6 +36,8 @@ export type DocumentListFilter = Readonly<{
   projectId?: ProjectId | null;
   conversationId?: ConversationId;
   status?: DocumentStatus | ReadonlyArray<DocumentStatus>;
+  limit?: number;
+  offset?: number;
 }>;
 
 export type CurrentVersionInput = Readonly<{
@@ -99,6 +101,16 @@ type MessageRecord = Readonly<{
   messageId: MessageId;
 }>;
 
+type InMemoryDocumentRepositoryState = Readonly<{
+  documents: Map<string, Document>;
+  versions: Map<string, DocumentVersion>;
+  conversationDocuments: Map<string, ConversationDocument>;
+  selections: Map<string, DocumentSelection>;
+  projects: Map<string, ProjectRecord>;
+  conversations: Map<string, ConversationRecord>;
+  messages: Map<string, MessageRecord>;
+}>;
+
 /**
  * Test-only repository. It deliberately has no persistence or storage
  * behavior, and mirrors the authorization invariants a real adapter must
@@ -114,6 +126,35 @@ export class InMemoryDocumentRepository implements DocumentRepository {
   private readonly messages = new Map<string, MessageRecord>();
 
   constructor(private readonly now: Clock = () => new Date()) {}
+
+  captureState(): InMemoryDocumentRepositoryState {
+    return {
+      documents: new Map(this.documents),
+      versions: new Map(this.versions),
+      conversationDocuments: new Map(this.conversationDocuments),
+      selections: new Map(this.selections),
+      projects: new Map(this.projects),
+      conversations: new Map(this.conversations),
+      messages: new Map(this.messages),
+    };
+  }
+
+  restoreState(state: InMemoryDocumentRepositoryState) {
+    this.documents.clear();
+    this.versions.clear();
+    this.conversationDocuments.clear();
+    this.selections.clear();
+    this.projects.clear();
+    this.conversations.clear();
+    this.messages.clear();
+    for (const [key, value] of state.documents) this.documents.set(key, value);
+    for (const [key, value] of state.versions) this.versions.set(key, value);
+    for (const [key, value] of state.conversationDocuments) this.conversationDocuments.set(key, value);
+    for (const [key, value] of state.selections) this.selections.set(key, value);
+    for (const [key, value] of state.projects) this.projects.set(key, value);
+    for (const [key, value] of state.conversations) this.conversations.set(key, value);
+    for (const [key, value] of state.messages) this.messages.set(key, value);
+  }
 
   seedProject(context: TrustedDocumentContext, value: ProjectId = projectId(randomUUID())) {
     const canonical = this.contextOwner(context);
@@ -192,12 +233,15 @@ export class InMemoryDocumentRepository implements DocumentRepository {
     const conversationIdValue = filter.conversationId === undefined
       ? null
       : this.validConversation(filter.conversationId);
+    const limit = this.pageSize(filter.limit);
+    const offset = this.pageOffset(filter.offset);
     return [...this.documents.values()]
       .filter((document) => document.ownerId === owner)
       .filter((document) => filter.projectId === undefined || document.projectId === (filter.projectId ?? null))
       .filter((document) => statuses === null || statuses.has(document.status))
       .filter((document) => conversationIdValue === null || this.isAvailable(owner, conversationIdValue, document.documentId))
-      .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.documentId.localeCompare(right.documentId))
+      .slice(offset, offset + limit);
   }
 
   async createVersion(context: TrustedDocumentContext, input: CreateVersionInput): Promise<DocumentVersion> {
@@ -205,7 +249,9 @@ export class InMemoryDocumentRepository implements DocumentRepository {
     const id = this.validDocument(input.documentId);
     const versionIdValue = this.validVersion(input.versionId);
     const document = this.requireDocument(owner, id);
-    if (document.status === "deleted") throw new DocumentPlatformError("DOCUMENT_ARCHIVED");
+    if (document.status === "deleted" || document.status === "archived") {
+      throw new DocumentPlatformError("DOCUMENT_ARCHIVED");
+    }
     const expectedLocator = this.expectedLocator(owner, id, versionIdValue);
     if (!this.sameLocator(input.storageLocator, expectedLocator)) {
       throw new DocumentPlatformError("DOCUMENT_VERSION_MISMATCH");
@@ -250,7 +296,7 @@ export class InMemoryDocumentRepository implements DocumentRepository {
     const id = this.validDocument(input.documentId);
     const versionIdValue = this.validVersion(input.versionId);
     const document = this.requireDocument(owner, id);
-    if (document.status === "deleted" || document.status === "expired") {
+    if (document.status === "deleted" || document.status === "expired" || document.status === "archived") {
       throw new DocumentPlatformError("DOCUMENT_UNAVAILABLE");
     }
     const version = this.versions.get(this.versionKey(owner, id, versionIdValue));
@@ -283,7 +329,7 @@ export class InMemoryDocumentRepository implements DocumentRepository {
   async archiveDocument(context: TrustedDocumentContext, id: DocumentId): Promise<Document> {
     const owner = this.contextOwner(context);
     const document = this.requireDocument(owner, this.validDocument(id));
-    const updated = { ...document, status: "deleted" as const, updatedAt: this.timestamp() };
+    const updated = { ...document, status: "archived" as const, updatedAt: this.timestamp() };
     this.documents.set(this.ownerKey(owner, document.documentId), updated);
     for (const [key, membership] of this.conversationDocuments) {
       if (membership.ownerId === owner && membership.documentId === document.documentId && membership.available) {
@@ -299,7 +345,7 @@ export class InMemoryDocumentRepository implements DocumentRepository {
     const id = this.validDocument(input.documentId);
     this.requireConversation(owner, conversation);
     const document = this.requireDocument(owner, id);
-    if (document.status === "deleted" || document.status === "expired") {
+    if (document.status === "deleted" || document.status === "expired" || document.status === "archived") {
       throw new DocumentPlatformError("DOCUMENT_UNAVAILABLE");
     }
     const key = this.membershipKey(owner, conversation, id);
@@ -511,6 +557,18 @@ export class InMemoryDocumentRepository implements DocumentRepository {
     } catch {
       throw new DocumentPlatformError("MESSAGE_NOT_ACCESSIBLE");
     }
+  }
+
+  private pageSize(value: number | undefined) {
+    if (value === undefined) return 50;
+    if (!Number.isSafeInteger(value) || value < 1 || value > 100) throw new DocumentPlatformError("DOCUMENT_INPUT_INVALID");
+    return value;
+  }
+
+  private pageOffset(value: number | undefined) {
+    if (value === undefined) return 0;
+    if (!Number.isSafeInteger(value) || value < 0) throw new DocumentPlatformError("DOCUMENT_INPUT_INVALID");
+    return value;
   }
 
   private ownerKey(owner: OwnerId, id: string) {

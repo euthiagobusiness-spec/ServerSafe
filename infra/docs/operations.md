@@ -1,6 +1,6 @@
 # Operação futura em Ubuntu
 
-Este documento é um runbook de preparação. Nenhum passo remoto ou destrutivo faz parte das Fases A ou B1.
+Este documento é um runbook de preparação. Nenhum passo remoto ou destrutivo faz parte das Fases A, B1 ou B2.
 
 ## Fluxo de dados
 
@@ -36,10 +36,10 @@ owner não é aceito como string livre de browser, prompt, cookie ou job. O cicl
 
 O adapter local não emite signed URLs nem simula multipart. Essas capacidades
 permanecem tipadas como não suportadas até existir um provider explícito. O
-worker também é apenas uma fronteira futura: o payload contém owner, document,
-version, job e operation, mas nunca bytes, texto extraído, prompt ou conteúdo
-do documento. O worker deverá buscar o estado por IDs através de uma camada
-autorizada.
+executor local da B2 demonstra reserve/validate/fetch/compare/handle/update/ack;
+o payload contém owner, document, version, job e operation, mas nunca bytes,
+texto extraído, prompt ou conteúdo do documento. Um worker de produção deverá
+buscar o estado por IDs através de uma camada autorizada.
 
 O contrato OpenHarness também é fail-closed: argumentos são percorridos
 recursivamente e não podem conter `ownerId`, `userId`, `requestId`,
@@ -86,10 +86,31 @@ Quando houver uma VM, a sequência será: `preflight.sh` read-only, revisão hum
 
 Detalhes e decisões pendentes estão em `infra/docs/costs.md` e na documentação de arquitetura do repositório.
 
+## Fase B2 — transação, intent e fila
+
+O fluxo de upload usa um `upload_intent` com owner, documento, versão reservada,
+checksum, tamanho, media type e expiração. O intent não contém bytes. A
+conclusão confirma o `head` do object storage e, na mesma unidade de trabalho,
+cria a versão oficial, aponta a versão atual, marca o documento como `ready`,
+cria o job e completa o intent. Falhas restauram a unidade de trabalho local
+ou provocam rollback PostgreSQL; a limpeza de objetos órfãos permanece uma
+rotina operacional futura.
+
+Jobs possuem tipos `document.extract`, `document.classify`, `document.chunk` e
+`spreadsheet.process`. O ciclo formal registra tentativa, limite de tentativas,
+disponibilidade, lease, heartbeat, código de erro normalizado e conclusão.
+O outbox contém somente o envelope metadata-only para publicação posterior.
+
+Antes de qualquer publicação real, o executor Valkey deve implementar as
+operações atômicas de enqueue, reserve, ack, retry, fail, heartbeat e cancel,
+com visibility lease, deduplicação e DLQ. O runtime não confia em owner ou
+documento recebido da fila: valida o envelope, resolve contexto autorizado,
+busca o job oficial e compara as referências antes de chamar um handler.
+
 ## O que não foi feito
 
 Não houve migração Redis v2, conexão com Supabase, alteração do Preview/Production,
-criação de usuário/role remoto, upload remoto de objetos, execução de worker,
+criação de usuário/role remoto, upload remoto de objetos, publicação de fila,
 geração de embeddings, RAG, editor XLSX, novas tools ativas do OpenHarness ou
-alteração do runtime Next.js. A B1 somente implementa contratos e o adapter de
-storage local restrito a desenvolvimento/testes.
+alteração do runtime Next.js. A B2 somente implementa contratos, adapters
+driver-neutral, transações locais e executor de worker em memória para testes.

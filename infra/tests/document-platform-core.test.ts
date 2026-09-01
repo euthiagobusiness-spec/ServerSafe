@@ -189,7 +189,7 @@ test("expired, detached, archived and foreign documents cannot be selected", asy
     platformError("DOCUMENT_UNAVAILABLE"),
   );
   const archived = await data.repository.archiveDocument(ownerA, data.documentA.documentId);
-  assert.equal(archived.status, "deleted");
+  assert.equal(archived.status, "archived");
   assert.ok(await data.repository.getDocument(ownerA, data.documentA.documentId));
   const archivedMessage = data.repository.seedMessage(ownerA, data.conversationA, messageId("aaaaaaaa-0004-4000-8000-aaaaaaaaaaaa"));
   await assert.rejects(

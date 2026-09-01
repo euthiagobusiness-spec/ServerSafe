@@ -1,6 +1,6 @@
 # ServerSafe Infrastructure v1
 
-Scaffolding local e provider-agnostic para uma futura infraestrutura em VMs Ubuntu. As Fases A e B1 não alteram o runtime Next.js, o Upstash Redis v2, o Supabase Auth, o OpenHarness do Preview ou qualquer recurso remoto.
+Scaffolding local e provider-agnostic para uma futura infraestrutura em VMs Ubuntu. As Fases A, B1 e B2 não alteram o runtime Next.js, o Upstash Redis v2, o Supabase Auth, o OpenHarness do Preview ou qualquer recurso remoto.
 
 ## Arquitetura
 
@@ -22,6 +22,9 @@ Supabase Auth (inicial) -> user_id UUID canônico
 - `infra/postgres/migrations/0001_infrastructure_v1.sql` é uma migration do banco próprio. Ela não referencia `auth.users`, `auth.uid()` nem objetos específicos do Supabase.
 - `infra/storage/storage.ts` define a fronteira de object storage sem escolher fornecedor.
 - `infra/workers/contracts.ts` e `infra/openharness/contracts.ts` são contratos, não implementações nem alterações no agente atual.
+- `infra/postgres/` contém uma migration B2 e adapters SQL preparados por
+  parâmetros. O executor PostgreSQL e a unidade de trabalho são injetados; não
+  há driver, conexão ou credencial no repositório.
 - `infra/scripts/` separa preflight, bootstrap, deploy, health-check e backup/restore. Somente o preflight e o health-check são read-only.
 
 ## Fase B1 — Document Platform Core
@@ -55,6 +58,29 @@ indica disponibilidade; somente `message_documents` selecionados podem formar
 o contexto de uma mensagem. A identidade é fornecida pelo serviço autenticado
 como owner canônico; agentes e clientes não escolhem `ownerId`.
 
+## Fase B2 — transações e execução assíncrona
+
+`DocumentUnitOfWork` é a fronteira para os fluxos que alteram mais de uma
+entidade. O adapter local restaura snapshots em caso de erro; o
+`PostgresDocumentUnitOfWork` constrói repository, jobs e upload intents com o
+mesmo client transacional. A conclusão do upload torna versão, versão atual,
+status `ready`, job e intent `completed` uma operação única. O object storage
+continua externo: se a transação posterior falhar, o objeto é um órfão sujeito
+a limpeza operacional futura, sem ser tratado como dado PostgreSQL.
+
+`0002_infrastructure_b2.sql` adiciona o status `archived` separado do estado
+terminal `deleted`, os campos de heartbeat/erro, job types pontilhados, upload intents e
+um outbox transacional de metadata para publicação posterior na fila. Nenhum
+binário é salvo no PostgreSQL.
+
+`InMemoryValkeyQueue` valida envelopes, deduplica por owner/idempotency key,
+controla visibility lease, heartbeat, retry, cancelamento e DLQ. O
+`ValkeyQueueAdapter` recebe apenas um executor compatível com Valkey; nenhuma
+operação remota é feita nesta fase. `DocumentWorkerRuntime` reserva, valida o
+envelope, busca o job oficial usando contexto autorizado, compara owner,
+documento, versão e operação, executa o handler metadata-only e atualiza o
+ciclo `queued -> processing -> completed/failed/cancelled`.
+
 ## Fonte de verdade e cutover
 
 Hoje, o Supabase Auth continua ativo como provedor de identidade e o runtime
@@ -86,8 +112,8 @@ PostgreSQL novo deverá ser uma ação operacional explicitamente autorizada.
 ## Limites desta fase
 
 Não há migração do Redis atual, pipeline de embeddings/RAG, editor XLSX,
-adapter produtivo de storage, worker executável, ferramenta OpenHarness nova,
-bootstrap de VM, backup real ou deploy. O adapter local da B1 é restrito a
-desenvolvimento/testes e não representa persistência de produção. A primeira
+adapter produtivo de storage, publicação remota de fila, ferramenta OpenHarness
+nova, bootstrap de VM, backup real ou deploy. O adapter local da B1/B2 é
+restrito a desenvolvimento/testes e não representa persistência de produção. A primeira
 VM exigirá confirmação de CPU, memória, disco, rede, domínio, política de
 backup e operador responsável.

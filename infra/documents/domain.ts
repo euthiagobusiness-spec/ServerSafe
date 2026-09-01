@@ -62,14 +62,15 @@ export const projectId = (value: string) => uuid<ProjectId>(value, "PROJECT_ID_I
 export const messageId = (value: string) => uuid<MessageId>(value, "MESSAGE_ID_INVALID");
 export const jobId = (value: string) => uuid<JobId>(value, "JOB_ID_INVALID");
 
-export type DocumentStatus = "pending" | "processing" | "ready" | "failed" | "expired" | "deleted";
+export type DocumentStatus = "pending" | "processing" | "ready" | "failed" | "expired" | "archived" | "deleted";
 
 export const DOCUMENT_STATUS_TRANSITIONS: Readonly<Record<DocumentStatus, ReadonlyArray<DocumentStatus>>> = {
-  pending: ["pending", "processing", "ready", "failed", "expired", "deleted"],
-  processing: ["processing", "ready", "failed", "expired", "deleted"],
-  ready: ["ready", "processing", "failed", "expired", "deleted"],
-  failed: ["failed", "processing", "expired", "deleted"],
-  expired: ["expired", "deleted"],
+  pending: ["pending", "processing", "ready", "failed", "expired", "archived", "deleted"],
+  processing: ["processing", "ready", "failed", "expired", "archived", "deleted"],
+  ready: ["ready", "processing", "failed", "expired", "archived", "deleted"],
+  failed: ["failed", "processing", "expired", "archived", "deleted"],
+  expired: ["expired", "archived", "deleted"],
+  archived: ["archived", "deleted"],
   deleted: ["deleted"],
 };
 
